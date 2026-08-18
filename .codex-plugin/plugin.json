@@ -1,0 +1,31 @@
+{
+  "name": "agent-usage",
+  "version": "0.1.0",
+  "description": "Read how much of each AI provider's usage limit is left, when it resets, and which provider still has headroom.",
+  "author": {
+    "name": "trycopilot.ai"
+  },
+  "homepage": "https://github.com/trycopilotai/agent-usage",
+  "repository": "https://github.com/trycopilotai/agent-usage",
+  "license": "MIT",
+  "keywords": [
+    "usage",
+    "quota",
+    "rate-limits",
+    "ai-agents",
+    "developer-tools"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "agent-usage",
+    "shortDescription": "Read how much of each AI provider's usage limit is left",
+    "longDescription": "Read provider usage limits from first party APIs, with an opt-in browser fallback, and report what is left, when it resets, and which provider has headroom.",
+    "developerName": "trycopilot.ai",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Network", "Execute"],
+    "websiteURL": "https://github.com/trycopilotai/agent-usage",
+    "defaultPrompt": [
+      "Use $agent-usage to show how much of each provider's usage limit is left and when it resets."
+    ]
+  }
+}

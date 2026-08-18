@@ -1,0 +1,6 @@
+interface:
+  display_name: "agent-usage"
+  short_description: "Read how much of each AI provider's usage limit is left"
+  default_prompt:
+    "Use $agent-usage to show how much of each provider's
+    usage limit is left and when it resets."
