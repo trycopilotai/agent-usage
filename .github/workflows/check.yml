@@ -1,0 +1,63 @@
+name: check
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  suite:
+    name: Suite (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - name: Checkout
+        # Full history on purpose. The demo manifest records an
+        # input commit and the verifier reads that commit's tree,
+        # so a shallow checkout cannot prove the binding.
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          submodules: false
+      - name: Set up Python
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install development dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Run the suite and the packaging assertions
+        # No browser and no provider credential. The suite is
+        # written to pass without either, so this proves that
+        # rather than assuming it.
+        run: make check
+
+  interface:
+    name: Interface builds and the committed build is current
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Set up Node
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: "22"
+      - name: Install pinned dependencies
+        run: npm --prefix web ci
+      - name: Build the interface
+        run: npm --prefix web run build
+      - name: Fail if the committed build is stale
+        # web/dist is committed so the service needs no Node
+        # toolchain. That only holds if what ships matches the
+        # source it claims to come from.
+        run: git diff --exit-code -- web/dist
