@@ -142,6 +142,18 @@ with `npm --prefix web ci && npm --prefix web run build`.
 
 ## Docker
 
+Published images are at `ghcr.io/trycopilotai/agent-usage`,
+tagged by release and `latest`.
+
+```sh
+docker run --rm -p 8787:8787 \
+  -v agent-usage-state:/data/state \
+  -v "$HOME/.claude:/data/.claude:ro" \
+  ghcr.io/trycopilotai/agent-usage:v0.2.1
+```
+
+To build it yourself instead:
+
 ```sh
 docker build -t agent-usage .
 docker run --rm -p 8787:8787 \
@@ -149,6 +161,10 @@ docker run --rm -p 8787:8787 \
   -v "$HOME/.claude:/data/.claude:ro" \
   agent-usage
 ```
+
+An image is pushed only after a container built from it has
+answered for both halves: the API under its own schema, and
+the interface document with both of its assets.
 
 The image runs unprivileged and carries no build toolchain.
 Mount whichever provider credential directories you want it
