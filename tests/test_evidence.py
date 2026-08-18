@@ -93,17 +93,47 @@ def test_the_transcript_declares_its_readings_synthetic():
 
 
 def test_a_manifest_pointing_at_the_wrong_commit_is_caught():
-    """Ancestry alone let the commit and the bytes disagree."""
+    """Ancestry alone let the commit and the bytes disagree.
+
+    Built rather than borrowed from history: a commit whose
+    sources differ is created, then the working tree is put
+    back, so only the commit check can fire.
+    """
     root = _copy()
-    path = root / "evidence" / "demo-manifest.json"
-    manifest = json.loads(path.read_text(encoding="utf-8"))
-    parent = subprocess.run(
-        ["git", "-C", str(root), "rev-parse", manifest["input_commit"] + "^"],
-        capture_output=True,
-        text=True,
+    manifest_path = root / "evidence" / "demo-manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    recorded = sorted(manifest["source_sha256"])[0]
+    source = root / recorded
+    original = source.read_text(encoding="utf-8")
+
+    source.write_text(original + "\n# drift\n", encoding="utf-8")
+    for command in (
+        ["git", "-C", str(root), "add", recorded],
+        [
+            "git",
+            "-C",
+            str(root),
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@example.com",
+            "commit",
+            "-q",
+            "-m",
+            "drift",
+        ],
+    ):
+        subprocess.run(command, check=True, capture_output=True)
+    head = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True, text=True
     ).stdout.strip()
-    manifest["input_commit"] = parent
-    path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    # Put the tree back so the tree check cannot be what fires.
+    source.write_text(original, encoding="utf-8")
+
+    manifest["input_commit"] = head
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     result = _verify(root)
     assert result.returncode == 1
     assert "does not match the input commit" in result.stderr
