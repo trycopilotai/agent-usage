@@ -117,9 +117,9 @@ def _credits(body: Any) -> contract.Credits:
     """This provider reports no credit object at all.
 
     An earlier version inferred "exhausted" from an empty
-    weekly pool. That reused the word for paid overage being
-    consumed to mean a quota running out, which are opposite
-    facts: one costs money and one stops work. Unavailable is
-    the honest answer when the provider did not say.
+    weekly pool. That word belongs to the paid overage
+    allowance, and an empty quota is a different fact about a
+    different thing. Unavailable is the honest answer when the
+    provider did not say.
     """
     return contract.Credits(contract.CREDIT_UNAVAILABLE, "")

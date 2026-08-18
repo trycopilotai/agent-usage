@@ -76,11 +76,17 @@ durations together.
 
 ## Forecasts decline on purpose
 
-Read the top level `status`. `projected` means a forecast
-exists: a rate was measured from the stored readings and the
-time to exhaustion was extrapolated from it. Say so in those
-terms. It is an extrapolation, not an observation, and it
-assumes the current pace continues.
+Read the top level `status`. Two values are answers.
+
+`projected` means a forecast exists: a rate was measured
+from the stored readings and the time to exhaustion was
+extrapolated from it. Say so in those terms. It is an
+extrapolation, not an observation, and it assumes the
+current pace continues.
+
+`window_spent` means the window is already fully used. There
+is no runway to forecast, which is an answer rather than a
+refusal to give one.
 
 Any other value names why there is no forecast, and there is
 then nothing to report but that reason. Never convert a

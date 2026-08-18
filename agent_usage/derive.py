@@ -88,9 +88,9 @@ def seconds_until_exhausted(used_percent: float, rate_per_hour: Estimate) -> Est
         return Estimate(None, rate_per_hour.status)
     remaining = max(0.0, 100.0 - float(used_percent))
     if remaining <= 0:
-        # Not "exhausted". That word means paid overage being
-        # consumed, and this is a window with nothing left,
-        # which stops work rather than costing money.
+        # A separate word from the credit state "exhausted",
+        # which is about a paid overage allowance. This is a
+        # usage window with nothing left in it.
         return Estimate(0.0, "window_spent")
     return Estimate(remaining / float(rate_per_hour.value) * 3600.0, "projected")
 

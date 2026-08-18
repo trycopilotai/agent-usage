@@ -345,11 +345,11 @@ def test_a_provider_with_no_window_declines_the_forecast():
 
 
 def test_a_spent_window_is_not_called_exhausted():
-    """That word is reserved for paid overage being consumed.
+    """That word belongs to the paid overage allowance.
 
-    Reusing it for a window with nothing left would tell an
-    agent following the credit section that money is being
-    spent when work has merely stopped.
+    Reusing it for a usage window with nothing left would put
+    one token in front of a reader for two unrelated facts,
+    one about money and one about a limit.
     """
     rate = derive.burn_rate_per_hour([(0.0, 10.0), (7200.0, 30.0)])
     spent = derive.seconds_until_exhausted(100.0, rate)
@@ -476,3 +476,11 @@ def test_a_reset_is_not_reported_as_usage_falling():
     """
     assert derive.burn_rate_per_hour([(0.0, 80.0), (7200.0, 10.0)]).status == "window_reset"
     assert derive.burn_rate_per_hour([(0.0, 40.0), (7200.0, 40.0)]).status == "not_rising"
+
+
+def test_a_fully_spent_window_is_an_answer_not_a_decline():
+    """window_spent reports no runway. It is not a refusal."""
+    observation = contract.Observation("claude", 1.0, (contract.Window("5-hour", 100.0),))
+    document = derive.forecast(observation, [(0.0, 10.0), (7200.0, 100.0)])
+    assert document["status"] == "window_spent"
+    assert document["seconds_until_exhausted"]["value"] == 0.0

@@ -207,9 +207,10 @@ def test_credit_states_the_adapters_actually_emit():
 def test_providers_without_a_credit_field_say_unavailable():
     """Silence is not an assertion either way.
 
-    Reusing "exhausted" for an empty quota would tell a reader
-    money is being spent when work has merely stopped, and
-    "off" would be an answer the provider never gave.
+    Reusing "exhausted" for an empty quota would borrow a word
+    that belongs to the paid overage allowance for a fact
+    about a usage limit, and "off" would be an answer the
+    provider never gave.
     """
     empty_pool = kimi.parse(
         {
