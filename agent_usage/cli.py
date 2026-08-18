@@ -199,6 +199,7 @@ def command_serve(arguments: argparse.Namespace) -> int:
             arguments.port,
             database_path=config.database_path(**kwargs),
             state_kwargs=kwargs,
+            allow_any_host=arguments.allow_any_host,
         )
     except api.NonLoopbackBind as error:
         sys.stderr.write(str(error) + "\n")
@@ -265,6 +266,11 @@ def build_parser() -> argparse.ArgumentParser:
     serve = commands.add_parser("serve", help="serve the read only API on loopback")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=api.DEFAULT_PORT)
+    serve.add_argument(
+        "--allow-any-host",
+        action="store_true",
+        help="bind a routable address; for containers only, adds no authentication",
+    )
     serve.set_defaults(handler=command_serve)
     return parser
 

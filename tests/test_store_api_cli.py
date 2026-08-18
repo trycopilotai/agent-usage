@@ -484,3 +484,98 @@ def test_a_fully_spent_window_is_an_answer_not_a_decline():
     document = derive.forecast(observation, [(0.0, 10.0), (7200.0, 100.0)])
     assert document["status"] == "window_spent"
     assert document["seconds_until_exhausted"]["value"] == 0.0
+
+
+def test_history_shows_a_gap_where_a_provider_did_not_answer():
+    """A failed reading is absent, not a point at zero.
+
+    Charting an unanswered read as zero draws a cliff that
+    never happened and hides that nothing was measured.
+    """
+    connection = store.connect(":memory:")
+    store.record(
+        connection, contract.Observation("claude", 100.0, (contract.Window("5-hour", 10.0),))
+    )
+    store.record(connection, contract.failed("claude", contract.ERROR_RATE_LIMITED, now=200.0))
+    store.record(
+        connection, contract.Observation("claude", 300.0, (contract.Window("5-hour", 25.0),))
+    )
+    document = api.history_document(connection, "claude")
+    assert document["count"] == 2
+    assert [point["used_percent"] for point in document["points"]] == [10.0, 25.0]
+    assert all(point["collected_at"] != 200.0 for point in document["points"])
+    connection.close()
+
+
+def test_history_is_served_and_refuses_an_unknown_provider():
+    database = _db()
+    connection = store.connect(database)
+    store.record(
+        connection, contract.Observation("claude", 5.0, (contract.Window("5-hour", 30.0),))
+    )
+    connection.close()
+    server = _serve(database)
+    port = server.server_address[1]
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:%d/api/v1/history/claude" % port) as r:
+            document = json.loads(r.read().decode())
+        assert document["provider"] == "claude" and document["count"] == 1
+        with pytest.raises(urllib.error.HTTPError) as failure:
+            urllib.request.urlopen("http://127.0.0.1:%d/api/v1/history/nope" % port)
+        assert failure.value.code == 404
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_the_built_interface_is_served_and_cannot_be_escaped():
+    """A request must not walk out of the build directory."""
+    from agent_usage.api import UI_ROOT, ui_file
+
+    assert ui_file("../agent_usage/api.py") is None
+    assert ui_file("/etc/passwd") is None
+    assert ui_file("nope.exe") is None
+    if UI_ROOT.is_dir():
+        assert ui_file("index.html") is not None
+
+
+def test_the_ui_routes_resolve():
+    database = _db()
+    store.connect(database).close()
+    server = _serve(database)
+    port = server.server_address[1]
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:%d/ui/" % port) as response:
+            body = response.read().decode()
+        assert response.status == 200
+        assert '<div id="root">' in body
+        request = urllib.request.Request("http://127.0.0.1:%d/" % port)
+        with urllib.request.urlopen(request) as response:
+            # Followed the redirect to the interface.
+            assert response.status == 200
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_a_routable_bind_needs_an_explicit_opt_in():
+    """Refused by default, permitted only when asked for.
+
+    The container needs a routable bind because the namespace
+    is the boundary there. Everywhere else the refusal stands,
+    and the opt-in adds no authentication.
+    """
+    with pytest.raises(api.NonLoopbackBind):
+        api.assert_loopback("0.0.0.0")
+    assert api.assert_loopback("0.0.0.0", allow_any=True) == "0.0.0.0"
+    # The flag is off unless the caller passes it.
+    parser = cli.build_parser()
+    assert parser.parse_args(["serve"]).allow_any_host is False
+    assert parser.parse_args(["serve", "--allow-any-host"]).allow_any_host is True
+
+
+def test_the_dockerfile_asks_for_the_opt_in_it_needs():
+    """The image binds a routable address, so it must say so."""
+    dockerfile = (Path(__file__).resolve().parent.parent / "Dockerfile").read_text(encoding="utf-8")
+    if "0.0.0.0" in dockerfile:
+        assert "--allow-any-host" in dockerfile

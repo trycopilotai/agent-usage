@@ -1,0 +1,292 @@
+/* One dark surface. The palette carries meaning: a bar is
+   coloured by how close the limit is, and anything the tool
+   did not measure is muted rather than coloured, so an
+   unmeasured value never looks like a measured one. */
+
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --line: #21262d;
+  --text: #f0f6fc;
+  --muted: #8b949e;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --critical: #f85149;
+  --accent: #58a6ff;
+  --radius: 10px;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica,
+    Arial, sans-serif;
+}
+
+code {
+  font-family: SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+
+.page__header h1 {
+  margin: 0;
+  font-size: 30px;
+  letter-spacing: -0.01em;
+}
+
+.page__lede {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.refresh {
+  margin-top: 14px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 7px 14px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.refresh:hover {
+  border-color: var(--accent);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid var(--critical);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+.generated {
+  margin: 20px 0 4px;
+  font-size: 13px;
+}
+
+h2 {
+  font-size: 17px;
+  margin: 32px 0 12px;
+  letter-spacing: 0.01em;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.cardslot {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 4px 4px 10px;
+}
+
+.card {
+  padding: 14px 14px 6px;
+}
+
+.card header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 16px;
+  font-family: SFMono-Regular, Menlo, monospace;
+}
+
+.pill {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: var(--muted);
+}
+
+.pill--live {
+  color: var(--ok);
+  border-color: rgba(63, 185, 80, 0.4);
+}
+
+.pill--cached,
+.pill--stale {
+  color: var(--warn);
+  border-color: rgba(210, 153, 34, 0.4);
+}
+
+/* A provider that said nothing is drawn flat and grey. It is
+   deliberately not a bar at zero. */
+.card--silent {
+  opacity: 0.75;
+}
+
+.pill--silent {
+  color: var(--muted);
+}
+
+.reason {
+  margin: 10px 0 4px;
+  color: var(--muted);
+}
+
+.binding {
+  margin: 14px 0 6px;
+}
+
+.binding__label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.binding__percent {
+  color: var(--text);
+  font-family: SFMono-Regular, Menlo, monospace;
+}
+
+.binding__reset {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.track {
+  margin-top: 6px;
+  height: 10px;
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ok);
+}
+
+.card--warn .fill {
+  background: var(--warn);
+}
+
+.card--critical .fill {
+  background: var(--critical);
+}
+
+.windows,
+.health__table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.windows th,
+.health__table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  padding: 4px 6px;
+}
+
+.windows td,
+.health__table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(33, 38, 45, 0.6);
+  font-family: SFMono-Regular, Menlo, monospace;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 4px 10px;
+  margin: 14px 0 4px;
+  font-size: 13px;
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.spend {
+  color: var(--warn);
+}
+
+.spent {
+  color: var(--critical);
+}
+
+.chart {
+  display: block;
+  width: calc(100% - 20px);
+  height: 72px;
+  margin: 0 10px;
+}
+
+.chart__empty {
+  margin: 0 14px 8px;
+  font-size: 12px;
+}
+
+.chart__grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.chart__line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart__head {
+  fill: var(--accent);
+}
+
+.headroom ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.headroom li {
+  margin: 3px 0;
+}
+
+.page__footer {
+  margin-top: 40px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  font-size: 13px;
+}

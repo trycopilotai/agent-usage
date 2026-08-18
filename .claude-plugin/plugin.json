@@ -1,6 +1,6 @@
 {
   "name": "agent-usage",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Read how much of each AI provider's usage limit is left, when it resets, and which provider still has headroom.",
   "author": {
     "name": "trycopilot.ai"

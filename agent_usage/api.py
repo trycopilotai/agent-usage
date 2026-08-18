@@ -33,14 +33,61 @@ from .providers import registry
 SCHEMA = "trycopilotai/agent-usage/api/v1"
 DEFAULT_PORT = 8787
 SCREENSHOT_PREFIX = "/api/v1/screenshots/"
+UI_PREFIX = "/ui/"
+
+# The built interface, committed so the service can serve it
+# without a Node toolchain present.
+UI_ROOT = Path(__file__).resolve().parent.parent / "web" / "dist"
+
+# Only these types are served from the build directory. A file
+# with any other extension is refused rather than guessed at.
+UI_CONTENT_TYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".ico": "image/vnd.microsoft.icon",
+    ".json": "application/json",
+    ".map": "application/json",
+}
+
+
+def ui_file(relative: str) -> Path | None:
+    """Resolve one path under the build directory, or decline.
+
+    Refuses anything that escapes the build directory, so a
+    request cannot walk out of it with dots or a symlink.
+    """
+    if not UI_ROOT.is_dir():
+        return None
+    candidate = (UI_ROOT / relative.lstrip("/")).resolve()
+    root = UI_ROOT.resolve()
+    if candidate == root or root not in candidate.parents:
+        return None
+    if not candidate.is_file():
+        return None
+    if candidate.suffix not in UI_CONTENT_TYPES:
+        return None
+    return candidate
 
 
 class NonLoopbackBind(ValueError):
     """A refused attempt to bind a routable address."""
 
 
-def assert_loopback(host: str) -> str:
-    """Refuse anything a machine other than this one can reach."""
+def assert_loopback(host: str, allow_any: bool = False) -> str:
+    """Refuse anything a machine other than this one can reach.
+
+    ``allow_any`` exists for one situation: running inside a
+    container, where the network namespace is the boundary and
+    publishing a port is the deliberate act that exposes the
+    service. It is never the default, and it does not add
+    authentication, so anything that can reach the address can
+    read this account's usage.
+    """
+    if allow_any:
+        return host
     try:
         address = ipaddress.ip_address(host)
     except ValueError:
@@ -124,6 +171,34 @@ def _stored_failure(name: str, document: dict[str, Any] | None) -> contract.Obse
     return contract.failed(name, code or contract.ERROR_NO_READING, now=collected or time.time())
 
 
+HISTORY_MAX_POINTS = 2000
+
+
+def history_document(
+    connection: sqlite3.Connection,
+    provider: str,
+    *,
+    since: float | None = None,
+    limit: int = HISTORY_MAX_POINTS,
+) -> dict[str, Any]:
+    """Answered readings for one provider, oldest first.
+
+    Only answered readings appear. A provider that failed has
+    no point rather than a point at zero, so a chart shows a
+    gap where there was no answer instead of a drop to the
+    floor that never happened.
+    """
+    points = store.samples(connection, provider, since=since, limit=limit)
+    return {
+        "provider": provider,
+        "points": [
+            {"collected_at": round(when, 3), "used_percent": round(percent, 4)}
+            for when, percent in points
+        ],
+        "count": len(points),
+    }
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "agent-usage"
     sys_version = ""
@@ -160,6 +235,14 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith(SCREENSHOT_PREFIX):
             self._screenshot(path[len(SCREENSHOT_PREFIX) :])
             return
+        if path == "/" or path == UI_PREFIX.rstrip("/"):
+            self.send_response(302)
+            self.send_header("Location", UI_PREFIX)
+            self.end_headers()
+            return
+        if path.startswith(UI_PREFIX):
+            self._ui(path[len(UI_PREFIX) :] or "index.html")
+            return
         connection = self.connection_factory()
         try:
             if path == "/api/v1/snapshot":
@@ -167,6 +250,13 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if path == "/api/v1/report.md":
                 self._report(connection)
+                return
+            if path.startswith("/api/v1/history/"):
+                provider = path[len("/api/v1/history/") :]
+                if provider not in registry.PROVIDERS:
+                    self._json(404, {"error": "unknown_provider"})
+                    return
+                self._json(200, history_document(connection, provider))
                 return
             if path.startswith("/api/v1/forecast/"):
                 provider = path[len("/api/v1/forecast/") :]
@@ -211,6 +301,24 @@ class Handler(BaseHTTPRequestHandler):
         body = report.render(observations).encode("utf-8")
         self._send(200, body, "text/markdown; charset=utf-8")
 
+    def _ui(self, relative: str) -> None:
+        """Serve the built interface, or say it was not built."""
+        target = ui_file(relative)
+        if target is None and not relative.endswith(tuple(UI_CONTENT_TYPES)):
+            # A client side route, not a file. Hand back the
+            # entry document and let the app render it.
+            target = ui_file("index.html")
+        if target is None:
+            self._json(
+                404,
+                {
+                    "error": "ui_not_built",
+                    "detail": "run npm --prefix web ci && npm --prefix web run build",
+                },
+            )
+            return
+        self._send(200, target.read_bytes(), UI_CONTENT_TYPES[target.suffix])
+
     def _screenshot(self, name: str) -> None:
         """Serve the latest portal capture, when one exists.
 
@@ -237,6 +345,7 @@ def build_server(
     database_path: Path | None = None,
     connection_factory: Any = None,
     state_kwargs: dict[str, Any] | None = None,
+    allow_any_host: bool = False,
 ) -> ThreadingHTTPServer:
     """Build the loopback server.
 
@@ -246,7 +355,7 @@ def build_server(
     therefore return a NEW connection on every call; handing
     back one shared connection raises inside the handler.
     """
-    assert_loopback(host)
+    assert_loopback(host, allow_any=allow_any_host)
     server = ThreadingHTTPServer((host, port), Handler)
     if connection_factory is None:
 

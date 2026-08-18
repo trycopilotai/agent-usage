@@ -118,15 +118,57 @@ profile is holding every cookie you own.
 The HTTP surface has no authentication and refuses to bind
 anything but loopback.
 
+## The interface
+
+```sh
+python3 -m agent_usage.cli serve
+```
+
+Then open <http://127.0.0.1:8787/ui/>. It shows the binding
+window for every provider, all windows, when each resets,
+credit state, a history line per provider, a forecast or the
+reason there is not one, and a collection health table.
+
+It carries the same rules the library does. A provider that
+did not answer is drawn as not answering with its error
+code, never as a bar at zero. A reading that has aged out of
+the live window is labelled rather than redrawn. Headroom
+ranking excludes providers that did not answer and says so,
+because that is unknown headroom rather than full headroom.
+
+The built interface is committed under `web/dist`, so the
+service serves it with no Node toolchain present. Rebuild it
+with `npm --prefix web ci && npm --prefix web run build`.
+
+## Docker
+
+```sh
+docker build -t agent-usage .
+docker run --rm -p 8787:8787 \
+  -v agent-usage-state:/data/state \
+  -v "$HOME/.claude:/data/.claude:ro" \
+  agent-usage
+```
+
+The image runs unprivileged and carries no build toolchain.
+Mount whichever provider credential directories you want it
+to read, read only; it needs none of them to start.
+
+Inside the container the service binds a routable address,
+which it refuses to do anywhere else. That needs
+`--allow-any-host`, which the image passes explicitly. It
+adds no authentication: publishing the port is what exposes
+this account's usage, so publish it deliberately.
+
 ## Install
 
-Both product installs pin `v0.1.0`. Each block can be run
+Both product installs pin `v0.2.0`. Each block can be run
 twice with the same result.
 
 ### Claude Code
 
 ```sh
-release=v0.1.0
+release=v0.2.0
 checkout="$HOME/.claude/plugins/agent-usage-$release"
 discovery="$HOME/.claude/skills/agent-usage"
 mkdir -p "$(dirname "$checkout")" "$(dirname "$discovery")"
@@ -162,7 +204,7 @@ namespaced:
 ### Codex
 
 ```sh
-release=v0.1.0
+release=v0.2.0
 checkout="$HOME/.codex/plugins/agent-usage-$release"
 discovery="$HOME/.agents/skills/agent-usage"
 mkdir -p "$(dirname "$checkout")" "$(dirname "$discovery")"
