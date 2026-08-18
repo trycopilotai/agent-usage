@@ -63,10 +63,14 @@ def render() -> str:
         f'font-family="Helvetica, Arial, sans-serif">agent-usage</text>',
         f'  <text x="96" y="196" fill="{MUTED}" font-size="26" '
         f'font-family="Helvetica, Arial, sans-serif">'
-        f"How much of each AI provider&#8217;s limit is left, and when it resets.</text>",
+        f"How much of each AI provider&#8217;s limit is used, and when it resets.</text>",
     ]
     for index, (name, percent, colour) in enumerate(ROWS):
         lines.extend(bar(index, name, percent, colour))
+    lines.append(
+        f'  <text x="1104" y="222" fill="{MUTED}" font-size="18" '
+        f'font-family="SFMono-Regular, Menlo, monospace">used</text>'
+    )
     lines.append(
         f'  <text x="96" y="{HEIGHT - 74}" fill="{MUTED}" font-size="20" '
         f'font-family="Helvetica, Arial, sans-serif">'

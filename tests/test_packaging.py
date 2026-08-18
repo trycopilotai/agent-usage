@@ -136,3 +136,14 @@ def test_the_social_preview_svg_matches_its_generator():
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_the_social_preview_says_used_because_that_is_what_it_plots():
+    """The bars are used_percent, not remaining.
+
+    Labelling a 40 percent bar as how much is left inverts
+    the reading for anyone who never opens the README.
+    """
+    svg = (ROOT / "assets" / "social-preview.svg").read_text(encoding="utf-8")
+    assert "is used, and when it resets" in svg
+    assert "limit is left" not in svg

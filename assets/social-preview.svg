@@ -2,7 +2,7 @@
   <rect width="1280" height="640" fill="#0d1117"/>
   <rect x="48" y="48" width="1184" height="544" rx="20" fill="#161b22"/>
   <text x="96" y="146" fill="#f0f6fc" font-size="52" font-weight="600" font-family="Helvetica, Arial, sans-serif">agent-usage</text>
-  <text x="96" y="196" fill="#8b949e" font-size="26" font-family="Helvetica, Arial, sans-serif">How much of each AI provider&#8217;s limit is left, and when it resets.</text>
+  <text x="96" y="196" fill="#8b949e" font-size="26" font-family="Helvetica, Arial, sans-serif">How much of each AI provider&#8217;s limit is used, and when it resets.</text>
   <text x="96" y="276" fill="#f0f6fc" font-size="26" font-family="SFMono-Regular, Menlo, monospace">claude</text>
   <rect x="260" y="250" width="820" height="34" rx="17" fill="#21262d"/>
   <rect x="260" y="250" width="328" height="34" rx="17" fill="#58a6ff"/>
@@ -20,5 +20,6 @@
   <text x="96" y="524" fill="#f0f6fc" font-size="26" font-family="SFMono-Regular, Menlo, monospace">zai</text>
   <rect x="260" y="498" width="820" height="34" rx="17" fill="#21262d"/>
   <text x="276" y="523" fill="#8b949e" font-size="21" font-family="SFMono-Regular, Menlo, monospace">no answer</text>
+  <text x="1104" y="222" fill="#8b949e" font-size="18" font-family="SFMono-Regular, Menlo, monospace">used</text>
   <text x="96" y="566" fill="#8b949e" font-size="20" font-family="Helvetica, Arial, sans-serif">Missing is never zero. A provider that did not answer says so.</text>
 </svg>
