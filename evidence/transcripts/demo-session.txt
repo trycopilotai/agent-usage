@@ -1,0 +1,90 @@
+# Readings below are synthetic. No provider account was
+# contacted and no real quota appears in this transcript.
+
+$ agent-usage doctor
+{
+  "browser_available": "<varies by machine>",
+  "browser_providers": [
+    "claude",
+    "codex",
+    "grok",
+    "kimi",
+    "zai"
+  ],
+  "credentials": [
+    {
+      "expired": "<varies by machine>",
+      "origin": "<varies by machine>",
+      "present": "<varies by machine>",
+      "provider": "claude"
+    },
+    {
+      "expired": "<varies by machine>",
+      "origin": "<varies by machine>",
+      "present": "<varies by machine>",
+      "provider": "codex"
+    },
+    {
+      "expired": "<varies by machine>",
+      "origin": "<varies by machine>",
+      "present": "<varies by machine>",
+      "provider": "grok"
+    },
+    {
+      "expired": "<varies by machine>",
+      "origin": "<varies by machine>",
+      "present": "<varies by machine>",
+      "provider": "kimi"
+    },
+    {
+      "expired": "<varies by machine>",
+      "origin": "<varies by machine>",
+      "present": "<varies by machine>",
+      "provider": "zai"
+    }
+  ],
+  "providers": [
+    "claude",
+    "codex",
+    "grok",
+    "kimi",
+    "zai"
+  ],
+  "schema": "trycopilotai/agent-usage/doctor/v1",
+  "state_dir": "<temporary>"
+}
+
+$ agent-usage collect   # synthetic readings, seeded
+recorded 3 synthetic readings, 3 providers with no credential
+
+$ agent-usage report
+## Provider usage
+
+| Provider | Window | Used | Resets in | Credits |
+| --- | --- | --- | --- | --- |
+| claude | 5-hour | 40.0% | 30m | unavailable |
+| codex | 5-hour | 12.5% | 1h 0m | unavailable |
+
+- grok: no answer (no_credential)
+- kimi: no answer (no_credential)
+- zai: no answer (no_credential)
+
+Read by agent-usage. 2 of 5 providers answered.
+
+$ agent-usage forecast claude
+{
+  "burn_rate_per_hour": {
+    "status": "measured",
+    "value": 10.0
+  },
+  "provider": "claude",
+  "resets_before_exhausted": true,
+  "resets_in_seconds": 1800.0,
+  "seconds_until_exhausted": {
+    "status": "projected",
+    "value": 21600.0
+  },
+  "status": "projected",
+  "used_percent": 40.0,
+  "window": "5-hour"
+}
