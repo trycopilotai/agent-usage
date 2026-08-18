@@ -6,7 +6,10 @@ import { defineConfig } from 'vite';
 // diff what ships against what the source says.
 export default defineConfig({
   plugins: [react()],
-  base: '/ui/',
+  // Relative, not absolute. A consumer that embeds this build
+  // serves it from its own path, and an absolute base would
+  // make the assets 404 there.
+  base: './',
   build: {
     outDir: 'dist',
     emptyOutDir: true,

@@ -147,3 +147,30 @@ def test_the_social_preview_says_used_because_that_is_what_it_plots():
     svg = (ROOT / "assets" / "social-preview.svg").read_text(encoding="utf-8")
     assert "is used, and when it resets" in svg
     assert "limit is left" not in svg
+
+
+def test_the_built_interface_can_be_mounted_anywhere():
+    """A consumer embeds this build without rebuilding it.
+
+    Absolute asset paths would 404 wherever the consumer
+    serves it from, and a compiled in API root would point at
+    a service that is not theirs.
+    """
+    dist = ROOT / "web" / "dist" / "index.html"
+    if not dist.is_file():
+        return
+    document = dist.read_text(encoding="utf-8")
+    assert 'src="./assets/' in document
+    assert 'href="./assets/' in document
+    assert 'src="/assets/' not in document
+    assert 'src="/ui/' not in document
+    # The API root is a runtime value, overridable by a
+    # consumer editing its own copy of this document.
+    assert 'name="agent-usage-api"' in document
+
+
+def test_the_interface_reads_its_api_root_at_runtime():
+    source = (ROOT / "web" / "src" / "hooks" / "useUsage.ts").read_text(encoding="utf-8")
+    assert "agent-usage-api" in source
+    # No absolute API path compiled into the requests.
+    assert "'/api/v1/snapshot'" not in source

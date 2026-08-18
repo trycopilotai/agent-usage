@@ -12798,6 +12798,11 @@ function ProviderCard({ provider, forecast }) {
   ] });
 }
 const POLL_MS = 3e4;
+function apiBase() {
+  const meta = document.querySelector('meta[name="agent-usage-api"]');
+  const value = meta?.content?.trim();
+  return (value && value.length > 0 ? value : "/api/v1").replace(/\/$/, "");
+}
 async function getJson(path) {
   const response = await fetch(path, { headers: { Accept: "application/json" } });
   if (!response.ok) {
@@ -12817,7 +12822,7 @@ function useUsage() {
     let cancelled = false;
     async function load() {
       try {
-        const next = await getJson("/api/v1/snapshot");
+        const next = await getJson(`${apiBase()}/snapshot`);
         if (cancelled) return;
         setSnapshot(next);
         setError(null);
@@ -12825,12 +12830,12 @@ function useUsage() {
         const [forecastList, historyList] = await Promise.all([
           Promise.all(
             names.map(
-              (name) => getJson(`/api/v1/forecast/${name}`).catch(() => null)
+              (name) => getJson(`${apiBase()}/forecast/${name}`).catch(() => null)
             )
           ),
           Promise.all(
             names.map(
-              (name) => getJson(`/api/v1/history/${name}`).catch(() => null)
+              (name) => getJson(`${apiBase()}/history/${name}`).catch(() => null)
             )
           )
         ]);

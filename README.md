@@ -162,13 +162,13 @@ this account's usage, so publish it deliberately.
 
 ## Install
 
-Both product installs pin `v0.2.0`. Each block can be run
+Both product installs pin `v0.2.1`. Each block can be run
 twice with the same result.
 
 ### Claude Code
 
 ```sh
-release=v0.2.0
+release=v0.2.1
 checkout="$HOME/.claude/plugins/agent-usage-$release"
 discovery="$HOME/.claude/skills/agent-usage"
 mkdir -p "$(dirname "$checkout")" "$(dirname "$discovery")"
@@ -204,7 +204,7 @@ namespaced:
 ### Codex
 
 ```sh
-release=v0.2.0
+release=v0.2.1
 checkout="$HOME/.codex/plugins/agent-usage-$release"
 discovery="$HOME/.agents/skills/agent-usage"
 mkdir -p "$(dirname "$checkout")" "$(dirname "$discovery")"

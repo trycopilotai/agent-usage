@@ -8,6 +8,13 @@ import type { Forecast, History, Snapshot } from '../types';
 
 const POLL_MS = 30_000;
 
+/** The API root, read from the document at load time. */
+export function apiBase(): string {
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="agent-usage-api"]');
+  const value = meta?.content?.trim();
+  return (value && value.length > 0 ? value : '/api/v1').replace(/\/$/, '');
+}
+
 export type UsageState = {
   snapshot: Snapshot | null;
   forecasts: Record<string, Forecast>;
@@ -40,7 +47,7 @@ export function useUsage(): UsageState {
 
     async function load() {
       try {
-        const next = await getJson<Snapshot>('/api/v1/snapshot');
+        const next = await getJson<Snapshot>(`${apiBase()}/snapshot`);
         if (cancelled) return;
         setSnapshot(next);
         setError(null);
@@ -51,12 +58,12 @@ export function useUsage(): UsageState {
         const [forecastList, historyList] = await Promise.all([
           Promise.all(
             names.map((name) =>
-              getJson<Forecast>(`/api/v1/forecast/${name}`).catch(() => null),
+              getJson<Forecast>(`${apiBase()}/forecast/${name}`).catch(() => null),
             ),
           ),
           Promise.all(
             names.map((name) =>
-              getJson<History>(`/api/v1/history/${name}`).catch(() => null),
+              getJson<History>(`${apiBase()}/history/${name}`).catch(() => null),
             ),
           ),
         ]);
