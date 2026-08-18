@@ -1,0 +1,93 @@
+name: publish-image
+
+# The image is published only after it has been proven to
+# serve. A build that succeeds says nothing about whether the
+# interface made it into the layer, so the smoke step asks a
+# running container for both the API and the UI before any
+# push happens.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Tag or commit to build, for example v0.2.1
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-image-${{ github.event.inputs.ref || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build, prove, publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout the ref being published
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+          persist-credentials: false
+
+      - name: Name the image
+        id: name
+        run: |
+          ref="${{ github.event.inputs.ref || github.ref_name }}"
+          repo="${GITHUB_REPOSITORY,,}"
+          echo "image=ghcr.io/${repo}" >> "$GITHUB_OUTPUT"
+          echo "version=${ref}" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: |
+          docker build \
+            -t "${{ steps.name.outputs.image }}:${{ steps.name.outputs.version }}" \
+            -t "${{ steps.name.outputs.image }}:latest" \
+            .
+
+      - name: Prove the image serves the API and the UI
+        run: |
+          set -euo pipefail
+          image="${{ steps.name.outputs.image }}:${{ steps.name.outputs.version }}"
+          docker run -d --name agent-usage-smoke -p 8787:8787 "$image"
+          trap 'docker logs agent-usage-smoke || true; \
+                docker rm -f agent-usage-smoke >/dev/null 2>&1 || true' EXIT
+
+          for _ in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8787/healthz >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+
+          health="$(curl -fsS http://127.0.0.1:8787/healthz)"
+          echo "healthz: $health"
+          echo "$health" | grep -q 'trycopilotai/agent-usage/api/v1'
+
+          # The API answers under its own schema.
+          snapshot="$(curl -fsS http://127.0.0.1:8787/api/v1/snapshot)"
+          echo "$snapshot" | grep -q 'trycopilotai/agent-usage/api/v1'
+
+          # The interface is in the image, not merely built
+          # beside it: the document and both assets must load.
+          curl -fsS http://127.0.0.1:8787/ui/ | grep -q 'assets/app.js'
+          curl -fsS -o /dev/null http://127.0.0.1:8787/ui/assets/app.js
+          curl -fsS -o /dev/null http://127.0.0.1:8787/ui/assets/app.css
+
+          # It runs unprivileged, which the README states.
+          test "$(docker exec agent-usage-smoke id -u)" = "10001"
+
+      - name: Sign in to the registry
+        run: >-
+          echo "${{ secrets.GITHUB_TOKEN }}" |
+          docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Publish
+        run: |
+          docker push "${{ steps.name.outputs.image }}:${{ steps.name.outputs.version }}"
+          docker push "${{ steps.name.outputs.image }}:latest"
