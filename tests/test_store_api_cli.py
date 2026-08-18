@@ -57,7 +57,10 @@ def test_credential_shapes_are_scrubbed_from_free_text():
 def test_forecast_declines_rather_than_guessing():
     assert derive.burn_rate_per_hour([(0.0, 10.0)]).known is False
     assert derive.burn_rate_per_hour([(0.0, 10.0), (30.0, 20.0)]).status == "span_too_short"
-    assert derive.burn_rate_per_hour([(0.0, 50.0), (7200.0, 10.0)]).status == "not_rising"
+    # A fall is a reset, so it names the reset. A flat series
+    # is the one that did not rise.
+    assert derive.burn_rate_per_hour([(0.0, 50.0), (7200.0, 10.0)]).status == "window_reset"
+    assert derive.burn_rate_per_hour([(0.0, 50.0), (7200.0, 50.0)]).status == "not_rising"
     measured = derive.burn_rate_per_hour([(0.0, 10.0), (7200.0, 30.0)])
     assert measured.known and measured.value == 10.0
 
@@ -380,9 +383,9 @@ def test_a_window_that_reset_mid_span_does_not_average_across_it():
     # 10 to 90 over one hour, not 80 to 90 over two.
     assert rate.value == 80.0
 
-    # A reset with too little after it declines rather than
-    # reporting the pre-reset window.
-    assert derive.burn_rate_per_hour([(0.0, 80.0), (7200.0, 10.0)]).status == "not_rising"
+    # A reset with too little after it names the reset rather
+    # than claiming usage fell inside the live window.
+    assert derive.burn_rate_per_hour([(0.0, 80.0), (7200.0, 10.0)]).status == "window_reset"
 
 
 def test_a_forecast_carries_one_status_at_the_top_level():
@@ -433,3 +436,43 @@ def test_the_forecast_status_describes_the_forecast_not_the_rate():
 
     declined = derive.forecast(observation, [(0.0, 10.0)])
     assert declined["status"] == "insufficient_samples"
+
+
+def test_credit_states_separate_spending_now_from_the_cap():
+    """active is ongoing spend. exhausted is the allowance gone.
+
+    Grouping them as "spending money" told a reader money was
+    going out at the moment it had stopped, and hid the more
+    useful warning that the fallback is used up.
+    """
+    from agent_usage.providers import claude
+
+    spending = claude.parse(
+        {"five_hour": {"utilization": 1.0}, "extra_usage": {"enabled": True, "used": 5, "cap": 10}},
+        1.0,
+    )
+    assert spending.credits.state == contract.CREDIT_ACTIVE
+    assert "engaged" in spending.credits.detail
+
+    capped = claude.parse(
+        {
+            "five_hour": {"utilization": 1.0},
+            "extra_usage": {"enabled": True, "used": 10, "cap": 10},
+        },
+        1.0,
+    )
+    assert capped.credits.state == contract.CREDIT_EXHAUSTED
+    assert "cap reached" in capped.credits.detail
+    # Both drew on credit, so both are engaged, but only one
+    # is still spending.
+    assert spending.credits.engaged and capped.credits.engaged
+
+
+def test_a_reset_is_not_reported_as_usage_falling():
+    """Distinct statuses, because the fixes differ.
+
+    not_rising means wait or use more. window_reset means the
+    clock restarted and you need another reading.
+    """
+    assert derive.burn_rate_per_hour([(0.0, 80.0), (7200.0, 10.0)]).status == "window_reset"
+    assert derive.burn_rate_per_hour([(0.0, 40.0), (7200.0, 40.0)]).status == "not_rising"

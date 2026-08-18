@@ -106,8 +106,14 @@ different, and `unavailable` must never be reported as
 `off`.
 
 `available` means credit exists but is not being consumed.
-`active` and `exhausted` mean paid overage actually is being
-consumed. Flag those two, because they mean spending money.
+
+`active` means paid overage is being consumed right now.
+Flag it, because it means money is going out.
+
+`exhausted` means the overage allowance is used up. Money
+was spent, but spending has stopped, and the useful warning
+is the opposite one: there is nothing left to fall back on,
+so work may stop when the limit is reached.
 
 Only Claude and Grok report credit at all. The other three
 always read `unavailable`, which means they were not asked

@@ -75,9 +75,11 @@ CREDIT_STATES = (
     CREDIT_EXHAUSTED,
 )
 
-# States in which credit is actually being consumed. A
-# provider that is merely eligible for credit is not engaged,
-# and silence is not an admission either way.
+# States in which paid credit has been drawn on at all. Only
+# CREDIT_ACTIVE is ongoing spend; CREDIT_EXHAUSTED means the
+# allowance is used up, so spending has stopped and work may
+# be blocked instead. A provider merely eligible for credit is
+# not engaged, and silence is not an admission either way.
 CREDIT_ENGAGED = (CREDIT_ACTIVE, CREDIT_EXHAUSTED)
 
 # Closed error vocabulary. A free text error routinely

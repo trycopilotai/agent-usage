@@ -48,6 +48,10 @@ UNKNOWN_FEW_SAMPLES = Estimate(None, "insufficient_samples")
 UNKNOWN_SHORT_SPAN = Estimate(None, "span_too_short")
 UNKNOWN_NOT_RISING = Estimate(None, "not_rising")
 UNKNOWN_NO_WINDOW = Estimate(None, "no_binding_window")
+# Distinct from not_rising. Nothing fell inside the live
+# window; the window itself restarted, and too little has
+# accumulated since to measure anything.
+UNKNOWN_AFTER_RESET = Estimate(None, "window_reset")
 
 
 def burn_rate_per_hour(samples: list[tuple[float, float]]) -> Estimate:
@@ -65,9 +69,7 @@ def burn_rate_per_hour(samples: list[tuple[float, float]]) -> Estimate:
     usable = _since_last_reset(ordered)
     if len(usable) < MINIMUM_SAMPLES:
         if len(ordered) >= MINIMUM_SAMPLES:
-            # There were readings, but the window reset and
-            # too little has accumulated since.
-            return UNKNOWN_NOT_RISING
+            return UNKNOWN_AFTER_RESET
         return UNKNOWN_FEW_SAMPLES
     first_time, first_percent = usable[0]
     last_time, last_percent = usable[-1]
