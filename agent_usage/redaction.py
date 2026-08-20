@@ -30,7 +30,9 @@ OBSERVATION_FIELDS = frozenset(
     }
 )
 
-WINDOW_FIELDS = frozenset({"label", "used_percent", "resets_in_seconds", "remaining", "limit"})
+WINDOW_FIELDS = frozenset(
+    {"label", "used_percent", "resets_in_seconds", "remaining", "limit", "scope"}
+)
 
 CREDIT_FIELDS = frozenset({"state", "detail"})
 

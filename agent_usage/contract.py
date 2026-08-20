@@ -44,6 +44,16 @@ SOURCES = (
     SOURCE_BROWSER_TEXT,
 )
 
+# What a window limits. An account scope pool governs the work
+# the account can do at all; a feature scope pool meters one
+# capability inside it. Providers report both in the same list
+# and distinguish them only by name, which is not something a
+# selection rule can be written against.
+SCOPE_ACCOUNT = "account"
+SCOPE_FEATURE = "feature"
+
+SCOPES = (SCOPE_ACCOUNT, SCOPE_FEATURE)
+
 # Freshness is a judgement about age, not a timestamp, so the
 # reader does not have to do arithmetic to know what it holds.
 FRESHNESS_LIVE = "live"
@@ -151,10 +161,16 @@ class Window:
     resets_in_seconds: float | None = None
     remaining: float | None = None
     limit: float | None = None
+    # Account scope by default: a provider that reports one
+    # undifferentiated set of pools is reporting account limits,
+    # and an adapter has to say otherwise on purpose.
+    scope: str = SCOPE_ACCOUNT
 
     def validate(self) -> None:
         if not isinstance(self.label, str) or not self.label:
             raise ContractError("window label must be a non-empty string")
+        if self.scope not in SCOPES:
+            raise ContractError("window scope outside the closed set: " + str(self.scope))
         if not _finite_number(self.used_percent):
             raise ContractError("used_percent must be a finite number")
         if not 0.0 <= float(self.used_percent) <= 100.0:
@@ -168,6 +184,7 @@ class Window:
         document: dict[str, Any] = {
             "label": self.label,
             "used_percent": round(float(self.used_percent), 4),
+            "scope": self.scope,
         }
         if self.resets_in_seconds is not None:
             document["resets_in_seconds"] = round(float(self.resets_in_seconds), 3)
@@ -239,18 +256,48 @@ class Observation:
         return self.error is None and bool(self.windows)
 
     def binding_window(self) -> Window | None:
-        """The window closest to stopping work.
+        """The limit that governs this account.
 
-        The highest percentage binds. Ties break on the label
-        so the choice is deterministic across runs, and pools
-        of different durations are never averaged together.
+        The fullest account scope pool binds. A feature pool can
+        be more spent than any of them and still not be the
+        answer to "how much is left", because it meters one
+        capability rather than the account: a provider whose
+        account pool is untouched has headroom for everything
+        except that capability, and reporting the feature pool
+        instead says the opposite.
+
+        Feature pools are still reported, still drawn, and still
+        the reason a card can show a full bar. They are only
+        kept out of this one choice.
+
+        A provider that reports no account scope pool binds the
+        fullest pool it has, because some answer beats none.
+        Ties break on the label so the choice is deterministic
+        across runs, and pools of different durations are never
+        averaged together.
         """
         if not self.windows:
             return None
+        account = [window for window in self.windows if window.scope == SCOPE_ACCOUNT]
         return sorted(
-            self.windows,
+            account or list(self.windows),
             key=lambda window: (-float(window.used_percent), window.label),
         )[0]
+
+    def spent_features(self) -> tuple[Window, ...]:
+        """Feature pools with nothing left.
+
+        The cost of binding the account pool is that a card can
+        read as full headroom while a capability is unusable.
+        This is the fact that stops that from being silent, and
+        it is derived rather than stored: everything it needs is
+        already in the windows.
+        """
+        return tuple(
+            window
+            for window in self.windows
+            if window.scope == SCOPE_FEATURE and float(window.used_percent) >= 100.0
+        )
 
     def to_dict(self) -> dict[str, Any]:
         self.validate()

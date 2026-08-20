@@ -28,7 +28,8 @@ OAUTH_BETA = "oauth-2025-04-20"
 # Overall pools, always reported even at zero.
 OVERALL_WINDOWS = (("five_hour", "5-hour"), ("seven_day", "7-day"))
 
-# Per model pools, omitted at zero. See the module docstring.
+# Per model pools, omitted at zero, and feature scope: they
+# meter one model rather than the account. See the docstring.
 PER_MODEL_WINDOWS = (
     ("seven_day_opus", "7-day opus"),
     ("seven_day_sonnet", "7-day sonnet"),
@@ -110,6 +111,9 @@ def parse(body: Any, now: float) -> contract.Observation:
                 label=label,
                 used_percent=percent,
                 resets_in_seconds=base.seconds_until(entry.get("resets_at"), now),
+                # One model, not the account. A spent Opus pool
+                # leaves Sonnet and the overall pools untouched.
+                scope=contract.SCOPE_FEATURE,
             )
         )
     if not windows:

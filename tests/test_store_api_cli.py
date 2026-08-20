@@ -333,7 +333,7 @@ def test_the_storage_allowlist_membership_is_pinned():
         }
     )
     assert redaction.WINDOW_FIELDS == frozenset(
-        {"label", "used_percent", "resets_in_seconds", "remaining", "limit"}
+        {"label", "used_percent", "resets_in_seconds", "remaining", "limit", "scope"}
     )
     assert redaction.CREDIT_FIELDS == frozenset({"state", "detail"})
 

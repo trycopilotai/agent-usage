@@ -27,6 +27,54 @@ def test_a_failed_observation_may_not_carry_windows():
         bad.validate()
 
 
+def test_an_account_pool_binds_even_when_a_feature_pool_is_fuller():
+    """The whole point of the scope field."""
+    observation = contract.Observation(
+        provider="codex",
+        collected_at=1.0,
+        windows=(
+            contract.Window("overall 1-week", 0.0),
+            contract.Window("Spark 1-week", 100.0, scope=contract.SCOPE_FEATURE),
+        ),
+    )
+    assert observation.binding_window().label == "overall 1-week"
+    assert [w.label for w in observation.spent_features()] == ["Spark 1-week"]
+
+
+def test_a_provider_with_only_feature_pools_still_binds_one():
+    """Some answer beats none.
+
+    A provider that reports nothing but feature pools has told
+    us what limits it has. Returning None there would read as
+    "no windows", which is how an unanswered provider reads.
+    """
+    observation = contract.Observation(
+        provider="codex",
+        collected_at=1.0,
+        windows=(
+            contract.Window("a", 10.0, scope=contract.SCOPE_FEATURE),
+            contract.Window("b", 80.0, scope=contract.SCOPE_FEATURE),
+        ),
+    )
+    assert observation.binding_window().label == "b"
+
+
+def test_a_feature_pool_short_of_full_is_not_reported_as_spent():
+    observation = contract.Observation(
+        provider="codex",
+        collected_at=1.0,
+        windows=(contract.Window("nearly", 99.9, scope=contract.SCOPE_FEATURE),),
+    )
+    assert observation.spent_features() == ()
+
+
+def test_a_window_scope_outside_the_closed_set_is_refused():
+    import pytest
+
+    with pytest.raises(contract.ContractError):
+        contract.Window("x", 1.0, scope="invented").validate()
+
+
 def test_binding_window_is_the_highest_and_breaks_ties_by_label():
     observation = contract.Observation(
         provider="claude",
