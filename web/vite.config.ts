@@ -17,9 +17,14 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        entryFileNames: 'assets/app.js',
-        chunkFileNames: 'assets/[name].js',
-        assetFileNames: 'assets/app.[ext]',
+        // Content hashed. The filenames are the cache policy:
+        // a build that changed is a URL that changed, so a
+        // browser holding the old one has no way to serve it
+        // for the new page, and a build that did not change
+        // keeps its name and stays cached.
+        entryFileNames: 'assets/app-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/app-[hash].[ext]',
       },
     },
   },
