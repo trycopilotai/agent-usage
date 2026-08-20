@@ -197,3 +197,23 @@ def test_a_headed_login_outlasts_the_child_it_waits_on():
 
     collector.login("claude", now=2.0, environ=env, runner=runner)
     assert seen["timeout"] == collector.LOGIN_TIMEOUT_SECONDS
+
+
+def test_grok_usage_page_is_a_page_that_exists():
+    """The configured page was /settings/usage, which 404s.
+
+    A browser tier pointed at a missing page reports a missing
+    session, which reads as "sign in again" and sends the
+    operator to fix something that is not broken.
+    """
+    assert extract.USAGE_PAGES["grok"] == "https://grok.com/"
+
+
+def test_the_grok_rate_limit_route_is_recognised_as_first_party():
+    # Without this the intercepted body is never parsed and the
+    # tier silently falls back to scraping rendered text.
+    assert extract.matches_usage_response("grok", "https://grok.com/rest/rate-limits")
+
+
+def test_an_unknown_provider_matches_no_response():
+    assert extract.matches_usage_response("nope", "https://example.com/anything") is False

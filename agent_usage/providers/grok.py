@@ -1,14 +1,30 @@
-"""Grok billing, from the first party billing route.
+"""Grok usage, from either of the two places it is kept.
 
-Three quirks are pinned by tests. Numeric fields arrive as
-bare numbers, as strings, and wrapped in a single key object,
-all meaning the same thing. This provider reports one
-monthly billing figure rather than rolling windows, so the
-observation carries exactly one window and never pretends to
-a five hour pool it was never told about. And an account with
-no metered monthly allowance answers with a well formed body
-whose limits are all zero, which is an account state and not
-a malformed response.
+Numeric fields arrive as bare numbers, as strings, and wrapped
+in a single key object, all meaning the same thing.
+
+There are two shapes, because there are two products. The API
+key reads **billing**, which reports one monthly figure rather
+than rolling windows, so that observation carries exactly one
+window and never pretends to a five hour pool it was never
+told about. An account with no metered monthly allowance
+answers with a well formed body whose limits are all zero,
+which is an account state and not a malformed response.
+
+A consumer subscription's allowance is not in billing at all.
+It is at `/rest/rate-limits`, counted in queries per rolling
+window rather than in money, and that route refuses an API
+token outright:
+
+    403 Action cannot be performed by OAuth2 token users
+
+so only the browser tier can reach it. Both shapes are parsed
+here because the browser tier reads a page and hands the body
+to this same function.
+
+That response states a window length and no reset instant, so
+`resets_in_seconds` stays unknown rather than being invented
+from the length of a window whose start nobody reported.
 """
 
 from __future__ import annotations
@@ -42,6 +58,45 @@ def collect(now: float | None = None, **kwargs: Any) -> contract.Observation:
 def parse(body: Any, now: float) -> contract.Observation:
     if not isinstance(body, dict):
         return contract.failed(PROVIDER, contract.ERROR_MALFORMED, now=now)
+    # Told apart by what they carry, not by where they came
+    # from: the browser tier hands this the body it intercepted
+    # without saying which route answered.
+    if "totalQueries" in body or "windowSizeSeconds" in body:
+        return _parse_rate_limits(body, now)
+    return _parse_billing(body, now)
+
+
+def _parse_rate_limits(body: dict, now: float) -> contract.Observation:
+    """Queries left in a rolling window, from the app's own route."""
+    total = base.number(body.get("totalQueries"))
+    remaining = base.number(body.get("remainingQueries"))
+    if total is None or remaining is None:
+        return contract.failed(PROVIDER, contract.ERROR_MALFORMED, now=now)
+    if total <= 0:
+        # No denominator, so no percentage. Same account state
+        # the billing route reports with a zero monthly limit.
+        return contract.failed(PROVIDER, contract.ERROR_NO_ALLOWANCE, now=now)
+    spent = max(0.0, total - remaining)
+    seconds = base.number(body.get("windowSizeSeconds"))
+    window = contract.Window(
+        label=base.window_label(seconds / 60.0) if seconds and seconds > 0 else "window",
+        used_percent=max(0.0, min(100.0, spent / total * 100.0)),
+        # Stated as a length, never as an instant.
+        resets_in_seconds=None,
+        remaining=max(0.0, remaining),
+        limit=total,
+    )
+    return contract.Observation(
+        provider=PROVIDER,
+        collected_at=now,
+        windows=(window,),
+        plan="",
+        credits=contract.Credits(contract.CREDIT_UNAVAILABLE, ""),
+        source=contract.SOURCE_API,
+    )
+
+
+def _parse_billing(body: dict, now: float) -> contract.Observation:
     config = body.get("config")
     if not isinstance(config, dict):
         return contract.failed(PROVIDER, contract.ERROR_MALFORMED, now=now)

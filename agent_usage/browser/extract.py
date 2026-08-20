@@ -25,7 +25,7 @@ USAGE_RESPONSE_FRAGMENTS = {
     "claude": ("/api/oauth/usage", "/api/organizations/", "/settings/usage"),
     "codex": ("/backend-api/wham/usage", "/backend-api/usage"),
     "kimi": ("/coding/v1/usages", "/v1/usages"),
-    "grok": ("/v1/billing", "/rest/usage", "/api/usage"),
+    "grok": ("/rest/rate-limits", "/v1/billing", "/rest/usage", "/api/usage"),
 }
 
 # The page a provider renders its usage on.
@@ -33,7 +33,10 @@ USAGE_PAGES = {
     "claude": "https://claude.ai/settings/usage",
     "codex": "https://chatgpt.com/codex/settings/usage",
     "kimi": "https://www.kimi.com/code/console",
-    "grok": "https://grok.com/settings/usage",
+    # Not /settings/usage: that path returns 404. The signed in
+    # app is where a session exists and where the rate limit
+    # call is made.
+    "grok": "https://grok.com/",
 }
 
 BROWSER_PROVIDERS = tuple(sorted(USAGE_PAGES))
