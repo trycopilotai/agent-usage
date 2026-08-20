@@ -96,6 +96,12 @@ ERROR_BROWSER_SESSION_MISSING = "browser_session_missing"
 ERROR_COOLING_DOWN = "cooling_down"
 ERROR_UNSUPPORTED = "unsupported_platform"
 ERROR_NO_READING = "no_reading"
+# The endpoint answered, and the answer was well formed, but the
+# account it describes has no metered allowance to spend: every
+# limit it reports is zero. That is a fact about the account, not
+# a fault in the response, and calling it malformed sends a
+# reader to the parser instead of to the billing page.
+ERROR_NO_ALLOWANCE = "no_allowance"
 
 ERROR_CODES = (
     ERROR_NO_CREDENTIAL,
@@ -109,6 +115,7 @@ ERROR_CODES = (
     ERROR_COOLING_DOWN,
     ERROR_UNSUPPORTED,
     ERROR_NO_READING,
+    ERROR_NO_ALLOWANCE,
 )
 
 

@@ -99,6 +99,37 @@ def test_grok_reports_one_window_and_invents_no_others():
     assert windows[0].label == "monthly"
 
 
+def test_grok_separates_a_zero_allowance_from_a_broken_body():
+    # The shape a live account with no metered monthly allowance
+    # returns: well formed, every figure wrapped, every figure zero.
+    zero = {
+        "config": {
+            "monthlyLimit": {"val": 0},
+            "used": {"val": 0},
+            "onDemandCap": {"val": 0},
+            "billingPeriodEnd": "2026-09-01T00:00:00+00:00",
+        }
+    }
+    observation = grok.parse(zero, NOW)
+    assert observation.answered is False
+    assert observation.error == contract.ERROR_NO_ALLOWANCE
+    assert observation.windows == ()
+
+    # A limit that is absent, or that is not a number at all, is
+    # still the parser's problem and still reads as malformed.
+    assert (
+        grok.parse({"config": {"used": 1}}, NOW).error == contract.ERROR_MALFORMED
+    )
+    assert (
+        grok.parse({"config": {"monthlyLimit": "nope", "used": 1}}, NOW).error
+        == contract.ERROR_MALFORMED
+    )
+
+
+def test_no_allowance_is_in_the_closed_vocabulary():
+    assert contract.ERROR_NO_ALLOWANCE in contract.ERROR_CODES
+
+
 def test_number_coercion_rejects_bool():
     assert base.number(True) is None
     assert base.number("12.5") == 12.5

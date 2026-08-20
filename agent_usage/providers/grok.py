@@ -1,11 +1,14 @@
 """Grok billing, from the first party billing route.
 
-Two quirks are pinned by tests. Numeric fields arrive as
+Three quirks are pinned by tests. Numeric fields arrive as
 bare numbers, as strings, and wrapped in a single key object,
-all meaning the same thing. And this provider reports one
+all meaning the same thing. This provider reports one
 monthly billing figure rather than rolling windows, so the
 observation carries exactly one window and never pretends to
-a five hour pool it was never told about.
+a five hour pool it was never told about. And an account with
+no metered monthly allowance answers with a well formed body
+whose limits are all zero, which is an account state and not
+a malformed response.
 """
 
 from __future__ import annotations
@@ -44,8 +47,15 @@ def parse(body: Any, now: float) -> contract.Observation:
         return contract.failed(PROVIDER, contract.ERROR_MALFORMED, now=now)
     limit = base.number(config.get("monthlyLimit"))
     used = base.number(config.get("used"))
-    if limit is None or used is None or limit <= 0:
+    if limit is None or used is None:
         return contract.failed(PROVIDER, contract.ERROR_MALFORMED, now=now)
+    if limit <= 0:
+        # A zero monthly limit parses cleanly; it says the account
+        # carries no metered monthly allowance. There is no
+        # denominator to take a percentage against, so report the
+        # account state rather than inventing a window or blaming
+        # the response.
+        return contract.failed(PROVIDER, contract.ERROR_NO_ALLOWANCE, now=now)
     percent = max(0.0, min(100.0, used / limit * 100.0))
     window = contract.Window(
         label="monthly",
