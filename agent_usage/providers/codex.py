@@ -13,10 +13,18 @@ the key is used only as a fallback for a response that omits
 it.
 
 The response also carries `additional_rate_limits`, a list of
-separately metered features with their own pools. Those are
-read too. An account has been observed with the top level
-pool at zero percent while a named feature pool sat at a
-hundred, which reads as full headroom when there is none.
+separately metered features with their own pools, and
+`code_review_rate_limit`, one more pool of the same shape.
+All of them are read. An account has been observed with the
+top level pool at zero percent while a named feature pool sat
+at a hundred, which reads as full headroom when there is
+none.
+
+Every pool says which limit it belongs to, including the
+account wide one. Two rows both called "1-week" that mean
+different limits are worse than no rows at all, because the
+reader cannot tell which of them is the one about to stop
+their work.
 """
 
 from __future__ import annotations
@@ -31,6 +39,16 @@ USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
 # The names are the historical meaning of each key, kept only
 # for a response that does not state its window length.
 WINDOWS = (("primary_window", "5-hour"), ("secondary_window", "weekly"))
+
+# What the account wide pool is called on a card that also
+# carries feature pools. Without it the top level rows are the
+# only ones that do not say what they limit.
+OVERALL_PREFIX = "overall "
+
+# One more pool, in its own key rather than in the list.
+CODE_REVIEW_KEY = "code_review_rate_limit"
+CODE_REVIEW_PREFIX = "code review "
+
 PROVIDER = "codex"
 
 
@@ -119,14 +137,26 @@ def _additional_windows(body: dict) -> list[contract.Window]:
     return windows
 
 
+def _code_review_windows(body: dict) -> list[contract.Window]:
+    """The code review pool, which sits in its own key.
+
+    It is metered separately from everything in
+    `additional_rate_limits` and is null on an account that has
+    not used it, which is not the same as an account that has
+    no such limit.
+    """
+    return _pool_windows(body.get(CODE_REVIEW_KEY), CODE_REVIEW_PREFIX)
+
+
 def parse(body: Any, now: float) -> contract.Observation:
     if not isinstance(body, dict):
         return contract.failed(PROVIDER, contract.ERROR_MALFORMED, now=now)
     limits = body.get("rate_limit")
     if not isinstance(limits, dict):
         return contract.failed(PROVIDER, contract.ERROR_MALFORMED, now=now)
-    windows = _pool_windows(limits)
+    windows = _pool_windows(limits, OVERALL_PREFIX)
     windows.extend(_additional_windows(body))
+    windows.extend(_code_review_windows(body))
     if not windows:
         return contract.failed(PROVIDER, contract.ERROR_MALFORMED, now=now)
     plan = body.get("plan_type")
@@ -135,6 +165,35 @@ def parse(body: Any, now: float) -> contract.Observation:
         collected_at=now,
         windows=tuple(windows),
         plan=plan if isinstance(plan, str) else "",
-        credits=contract.Credits(contract.CREDIT_UNAVAILABLE, ""),
+        credits=_credits(body),
         source=contract.SOURCE_API,
     )
+
+
+def _credits(body: Any) -> contract.Credits:
+    """What the account can fall back on once a pool is spent.
+
+    This response states it directly and the adapter used to
+    discard it, so every codex card said credits were not
+    reported when the account had been telling us all along.
+
+    "Unlimited" and "has credits" are both headroom rather than
+    spending: nothing here says a credit is being consumed
+    right now, and claiming otherwise would put a card into a
+    state the provider never described.
+    """
+    entry = body.get("credits") if isinstance(body, dict) else None
+    if not isinstance(entry, dict):
+        return contract.Credits(contract.CREDIT_UNAVAILABLE, "")
+    if entry.get("overage_limit_reached") is True:
+        return contract.Credits(contract.CREDIT_EXHAUSTED, "overage limit reached")
+    if entry.get("unlimited") is True:
+        return contract.Credits(contract.CREDIT_AVAILABLE, "credits unlimited")
+    if entry.get("has_credits") is True:
+        return contract.Credits(contract.CREDIT_AVAILABLE, "credit balance available")
+    if entry.get("has_credits") is False:
+        # Not "exhausted": that word belongs to an allowance
+        # that was spent, and this account may never have had
+        # one to spend.
+        return contract.Credits(contract.CREDIT_OFF, "no credit balance")
+    return contract.Credits(contract.CREDIT_UNAVAILABLE, "")
