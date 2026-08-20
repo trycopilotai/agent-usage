@@ -77,6 +77,16 @@ code {
   padding: 12px 14px;
 }
 
+/* A partial read is not an outage. It gets the warning colour
+   rather than the critical one, because the usage figures on
+   the page are still current when it appears. */
+.warning {
+  background: rgba(210, 153, 34, 0.1);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
 .generated {
   margin: 20px 0 4px;
   font-size: 13px;

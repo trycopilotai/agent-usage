@@ -12708,6 +12708,7 @@ const ERROR_NOTE = {
   no_credential: "not signed in on this machine",
   credential_expired: "signed in once, needs refreshing",
   unauthorized: "credential rejected",
+  no_allowance: "answered, but this account has no metered allowance",
   rate_limited: "asked too often",
   endpoint_unavailable: "could not be reached",
   malformed_response: "answered in a shape this adapter could not read",
@@ -12727,13 +12728,13 @@ function ProviderCard({ provider, forecast }) {
       /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "reason", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("code", { children: code }),
         " ",
-        ERROR_NOTE[code] ?? ""
+        ERROR_NOTE[code] ?? "reported a state this page has no words for yet"
       ] })
     ] });
   }
   const binding = provider.binding_window;
+  const tone = binding ? binding.used_percent >= 90 ? "critical" : binding.used_percent >= 70 ? "warn" : "ok" : "silent";
   const percent = binding ? binding.used_percent : 0;
-  const tone = percent >= 90 ? "critical" : percent >= 70 ? "warn" : "ok";
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("article", { className: `card card--${tone}`, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: provider.provider }),
@@ -12803,60 +12804,103 @@ function apiBase() {
   const value = meta?.content?.trim();
   return (value && value.length > 0 ? value : "/api/v1").replace(/\/$/, "");
 }
-async function getJson(path) {
-  const response = await fetch(path, { headers: { Accept: "application/json" } });
-  if (!response.ok) {
-    throw new Error(`${path} responded ${response.status}`);
+class ApiError extends Error {
+  kind;
+  constructor(kind, message) {
+    super(message);
+    this.name = "ApiError";
+    this.kind = kind;
   }
-  return await response.json();
+}
+async function getJson(path) {
+  let response;
+  try {
+    response = await fetch(path, { headers: { Accept: "application/json" } });
+  } catch {
+    throw new ApiError("network", `${path} could not be reached`);
+  }
+  if (response.status === 401 || response.status === 403) {
+    throw new ApiError("auth", `${path} refused the request`);
+  }
+  if (response.status === 504) {
+    throw new ApiError("timeout", `${path} took too long upstream`);
+  }
+  if (!response.ok) {
+    throw new ApiError("http", `${path} responded ${response.status}`);
+  }
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("json")) {
+    throw new ApiError("auth", `${path} answered with a page, not data`);
+  }
+  try {
+    return await response.json();
+  } catch {
+    throw new ApiError("shape", `${path} answered with unreadable data`);
+  }
 }
 function useUsage() {
   const [snapshot, setSnapshot] = reactExports.useState(null);
   const [forecasts, setForecasts] = reactExports.useState({});
   const [histories, setHistories] = reactExports.useState({});
   const [error, setError] = reactExports.useState(null);
+  const [incomplete, setIncomplete] = reactExports.useState([]);
   const [loading, setLoading] = reactExports.useState(true);
   const [tick, setTick] = reactExports.useState(0);
   const refresh = reactExports.useCallback(() => setTick((value) => value + 1), []);
   reactExports.useEffect(() => {
     let cancelled = false;
+    let detailGeneratedAt = null;
     async function load() {
+      let next;
       try {
-        const next = await getJson(`${apiBase()}/snapshot`);
-        if (cancelled) return;
-        setSnapshot(next);
-        setError(null);
-        const names = next.providers.map((provider) => provider.provider);
-        const [forecastList, historyList] = await Promise.all([
-          Promise.all(
-            names.map(
-              (name) => getJson(`${apiBase()}/forecast/${name}`).catch(() => null)
-            )
-          ),
-          Promise.all(
-            names.map(
-              (name) => getJson(`${apiBase()}/history/${name}`).catch(() => null)
-            )
-          )
-        ]);
-        if (cancelled) return;
-        const nextForecasts = {};
-        forecastList.forEach((value, index) => {
-          if (value) nextForecasts[names[index]] = value;
-        });
-        const nextHistories = {};
-        historyList.forEach((value, index) => {
-          if (value) nextHistories[names[index]] = value;
-        });
-        setForecasts(nextForecasts);
-        setHistories(nextHistories);
+        next = await getJson(`${apiBase()}/snapshot`);
       } catch (caught) {
         if (!cancelled) {
-          setError(caught instanceof Error ? caught.message : "request failed");
+          setError(
+            caught instanceof ApiError ? caught : new ApiError("network", "request failed")
+          );
+          setLoading(false);
         }
-      } finally {
-        if (!cancelled) setLoading(false);
+        return;
       }
+      if (cancelled) return;
+      setSnapshot(next);
+      setError(null);
+      const unchanged = detailGeneratedAt === next.generated_at;
+      if (unchanged) {
+        setLoading(false);
+        return;
+      }
+      const names = next.providers.map((provider) => provider.provider);
+      const [forecastList, historyList] = await Promise.all([
+        Promise.all(
+          names.map(
+            (name) => getJson(`${apiBase()}/forecast/${name}`).catch(() => null)
+          )
+        ),
+        Promise.all(
+          names.map(
+            (name) => getJson(`${apiBase()}/history/${name}`).catch(() => null)
+          )
+        )
+      ]);
+      if (cancelled) return;
+      const nextForecasts = {};
+      forecastList.forEach((value, index) => {
+        if (value) nextForecasts[names[index]] = value;
+      });
+      const nextHistories = {};
+      historyList.forEach((value, index) => {
+        if (value) nextHistories[names[index]] = value;
+      });
+      const missing = names.filter(
+        (_name, index) => forecastList[index] === null || historyList[index] === null
+      );
+      setForecasts(nextForecasts);
+      setHistories(nextHistories);
+      setIncomplete(missing);
+      detailGeneratedAt = next.generated_at;
+      setLoading(false);
     }
     load();
     const timer = window.setInterval(load, POLL_MS);
@@ -12865,7 +12909,7 @@ function useUsage() {
       window.clearInterval(timer);
     };
   }, [tick]);
-  return { snapshot, forecasts, histories, error, loading, refresh };
+  return { snapshot, forecasts, histories, error, incomplete, loading, refresh };
 }
 function ago(seconds) {
   const delta = Math.max(0, Math.floor(Date.now() / 1e3 - seconds));
@@ -12873,24 +12917,53 @@ function ago(seconds) {
   if (delta < 3600) return `${Math.floor(delta / 60)}m ago`;
   return `${Math.floor(delta / 3600)}h ago`;
 }
+function errorAdvice(kind) {
+  if (kind === "auth") {
+    return "The session has expired. Reload the page to sign in again.";
+  }
+  if (kind === "timeout") {
+    return "The service took too long to answer. It is running; try again shortly.";
+  }
+  const host = window.location.hostname;
+  if (host === "localhost" || host === "127.0.0.1" || host === "::1") {
+    return "This page reads a local service; start it with `agent-usage serve`.";
+  }
+  return "The service that collects usage did not answer. This is not something to fix from this page.";
+}
 function App() {
-  const { snapshot, forecasts, histories, error, loading, refresh } = useUsage();
+  const { snapshot, forecasts, histories, error, incomplete, loading, refresh } = useUsage();
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "page", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "page__header", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "agent-usage" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "page__lede", children: "How much of each provider limit is used, when it resets, and where there is headroom." }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: refresh, className: "refresh", children: "Refresh" })
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "button",
+          onClick: refresh,
+          className: "refresh",
+          "aria-label": "Refresh usage now",
+          children: "Refresh"
+        }
+      )
     ] }),
-    error ? /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "error", children: [
-      "The API did not answer: ",
-      error,
-      ". This page reads a local service; start it with ",
-      /* @__PURE__ */ jsxRuntimeExports.jsx("code", { children: "agent-usage serve" }),
-      "."
+    error ? /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "error", role: "alert", children: [
+      errorAdvice(error.kind),
+      " ",
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "muted", children: [
+        "(",
+        error.message,
+        ")"
+      ] })
+    ] }) : null,
+    incomplete.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "warning", role: "status", children: [
+      "Forecast or history is missing for ",
+      incomplete.join(", "),
+      ". The usage figures below are still current."
     ] }) : null,
     loading && !snapshot ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "muted", children: "Reading…" }) : null,
     snapshot ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "muted generated", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "muted generated", role: "status", "aria-live": "polite", children: [
         "Snapshot generated ",
         ago(snapshot.generated_at),
         ". Every number below was reported by the provider it belongs to."

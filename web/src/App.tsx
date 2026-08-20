@@ -11,8 +11,27 @@ function ago(seconds: number): string {
   return `${Math.floor(delta / 3600)}h ago`;
 }
 
+/** What the reader can do about a failure, in their situation. */
+function errorAdvice(kind: string): string {
+  if (kind === 'auth') {
+    return 'The session has expired. Reload the page to sign in again.';
+  }
+  if (kind === 'timeout') {
+    return 'The service took too long to answer. It is running; try again shortly.';
+  }
+  // Only a page served from this machine can be fixed by
+  // starting a local service. Telling a hosted reader to run a
+  // command sends them after a service they do not operate.
+  const host = window.location.hostname;
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') {
+    return 'This page reads a local service; start it with `agent-usage serve`.';
+  }
+  return 'The service that collects usage did not answer. This is not something to fix from this page.';
+}
+
 export function App() {
-  const { snapshot, forecasts, histories, error, loading, refresh } = useUsage();
+  const { snapshot, forecasts, histories, error, incomplete, loading, refresh } =
+    useUsage();
 
   return (
     <main className="page">
@@ -22,15 +41,26 @@ export function App() {
           How much of each provider limit is used, when it resets, and where
           there is headroom.
         </p>
-        <button type="button" onClick={refresh} className="refresh">
+        <button
+          type="button"
+          onClick={refresh}
+          className="refresh"
+          aria-label="Refresh usage now"
+        >
           Refresh
         </button>
       </header>
 
       {error ? (
-        <p className="error">
-          The API did not answer: {error}. This page reads a local service;
-          start it with <code>agent-usage serve</code>.
+        <p className="error" role="alert">
+          {errorAdvice(error.kind)} <span className="muted">({error.message})</span>
+        </p>
+      ) : null}
+
+      {incomplete.length > 0 ? (
+        <p className="warning" role="status">
+          Forecast or history is missing for {incomplete.join(', ')}. The usage
+          figures below are still current.
         </p>
       ) : null}
 
@@ -38,7 +68,7 @@ export function App() {
 
       {snapshot ? (
         <>
-          <p className="muted generated">
+          <p className="muted generated" role="status" aria-live="polite">
             Snapshot generated {ago(snapshot.generated_at)}. Every number below
             was reported by the provider it belongs to.
           </p>
