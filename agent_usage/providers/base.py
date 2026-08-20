@@ -6,7 +6,8 @@ could not answer, because the caller is deciding whether to
 start work and a slow certain answer is worse than a fast
 uncertain one.
 
-The only exception is documented at its call site.
+There is no exception left. The one adapter that retried, and
+documented why at its call site, has been removed.
 """
 
 from __future__ import annotations

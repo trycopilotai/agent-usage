@@ -17,9 +17,6 @@
   <text x="96" y="462" fill="#f0f6fc" font-size="26" font-family="SFMono-Regular, Menlo, monospace">kimi</text>
   <rect x="260" y="436" width="820" height="34" rx="17" fill="#21262d"/>
   <text x="276" y="461" fill="#8b949e" font-size="21" font-family="SFMono-Regular, Menlo, monospace">no answer</text>
-  <text x="96" y="524" fill="#f0f6fc" font-size="26" font-family="SFMono-Regular, Menlo, monospace">zai</text>
-  <rect x="260" y="498" width="820" height="34" rx="17" fill="#21262d"/>
-  <text x="276" y="523" fill="#8b949e" font-size="21" font-family="SFMono-Regular, Menlo, monospace">no answer</text>
   <text x="1104" y="222" fill="#8b949e" font-size="18" font-family="SFMono-Regular, Menlo, monospace">used</text>
   <text x="96" y="566" fill="#8b949e" font-size="20" font-family="Helvetica, Arial, sans-serif">Missing is never zero. A provider that did not answer says so.</text>
 </svg>

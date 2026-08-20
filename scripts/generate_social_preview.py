@@ -25,7 +25,6 @@ ROWS = [
     ("codex", 12.5, "#3fb950"),
     ("grok", None, None),
     ("kimi", None, None),
-    ("zai", None, None),
 ]
 
 

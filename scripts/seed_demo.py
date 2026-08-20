@@ -25,13 +25,13 @@ if ROOT not in sys.path:
 from agent_usage import config, contract, store  # noqa: E402
 
 # Two readings two hours apart so a burn rate is measurable,
-# one provider that answered once, and three that never did.
+# one provider that answered once, and the rest that never did.
 SEEDED = [
     ("claude", 1000.0, 20.0, 5400.0),
     ("claude", 8200.0, 40.0, 1800.0),
     ("codex", 8200.0, 12.5, 3600.0),
 ]
-SILENT = ("grok", "kimi", "zai")
+SILENT = ("grok", "kimi")
 
 
 def seed(state: str) -> None:
@@ -54,7 +54,12 @@ def seed(state: str) -> None:
             )
     finally:
         connection.close()
-    print("recorded 3 synthetic readings, 3 providers with no credential")
+    # Counted rather than spelled out, so removing a provider
+    # cannot leave the transcript claiming the old total.
+    print(
+        "recorded %d synthetic readings, %d providers with no credential"
+        % (len(SEEDED), len(SILENT))
+    )
 
 
 def redact_doctor() -> None:

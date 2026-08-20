@@ -11,14 +11,13 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from .. import contract
-from . import claude, codex, grok, kimi, zai
+from . import claude, codex, grok, kimi
 
 ADAPTERS: dict[str, Any] = {
     "claude": claude,
     "codex": codex,
     "grok": grok,
     "kimi": kimi,
-    "zai": zai,
 }
 
 PROVIDERS = tuple(sorted(ADAPTERS))
