@@ -36,6 +36,18 @@ const ERROR_NOTE: Record<string, string> = {
   unsupported_platform: 'no page this tool can read',
 };
 
+/** One rule for every bar and for the card behind them.
+ *
+ * The card's colour and a row's colour are the same judgement
+ * about the same number, so they are made in one place. Two
+ * thresholds that drift apart would paint a green bar inside a
+ * red card. */
+function toneFor(percent: number): 'ok' | 'warn' | 'critical' {
+  if (percent >= 90) return 'critical';
+  if (percent >= 70) return 'warn';
+  return 'ok';
+}
+
 export function ProviderCard({ provider, forecast }: Props) {
   // Missing is never zero: an unanswered provider gets its
   // own treatment rather than a bar at zero percent.
@@ -60,14 +72,7 @@ export function ProviderCard({ provider, forecast }: Props) {
   // always carries a window today, so this is a guard rather
   // than a path the API reaches -- but defaulting the percent to
   // zero would paint a card green for a limit nobody measured.
-  const tone = binding
-    ? binding.used_percent >= 90
-      ? 'critical'
-      : binding.used_percent >= 70
-        ? 'warn'
-        : 'ok'
-    : 'silent';
-  const percent = binding ? binding.used_percent : 0;
+  const tone = binding ? toneFor(binding.used_percent) : 'silent';
 
   return (
     <article className={`card card--${tone}`}>
@@ -79,41 +84,37 @@ export function ProviderCard({ provider, forecast }: Props) {
         </span>
       </header>
 
-      {binding ? (
-        <div className="binding">
-          <div className="binding__label">
-            <strong>{binding.label}</strong> binds
-            <span className="binding__percent">{percent.toFixed(1)}% used</span>
-          </div>
-          <div className="track">
-            <div className="fill" style={{ width: `${Math.min(100, percent)}%` }} />
-          </div>
-          <div className="binding__reset">
-            resets in {formatDuration(binding.resets_in_seconds)}
-          </div>
-        </div>
-      ) : null}
-
-      {provider.windows.length > 1 ? (
-        <table className="windows">
-          <thead>
-            <tr>
-              <th>window</th>
-              <th>used</th>
-              <th>resets in</th>
-            </tr>
-          </thead>
-          <tbody>
-            {provider.windows.map((window) => (
-              <tr key={window.label}>
-                <td>{window.label}</td>
-                <td>{window.used_percent.toFixed(1)}%</td>
-                <td>{formatDuration(window.resets_in_seconds)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : null}
+      {/* Every pool gets a bar. A provider can meter several
+          limits at once, and showing only the one that binds
+          hides the others entirely -- an account has been seen
+          with its account wide pool idle and a feature pool at
+          a hundred, where the single bar shown was the idle
+          one. */}
+      <ul className="pools">
+        {provider.windows.map((window) => {
+          const binds = Boolean(binding) && window.label === binding?.label;
+          return (
+            <li key={window.label} className={binds ? 'pool pool--binds' : 'pool'}>
+              <div className="pool__head">
+                <span className="pool__label">
+                  {window.label}
+                  {binds ? <span className="pool__binds">binds</span> : null}
+                </span>
+                <span className="pool__percent">{window.used_percent.toFixed(1)}%</span>
+              </div>
+              <div className="track">
+                <div
+                  className={`fill fill--${toneFor(window.used_percent)}`}
+                  style={{ width: `${Math.min(100, Math.max(0, window.used_percent))}%` }}
+                />
+              </div>
+              <div className="pool__reset">
+                resets in {formatDuration(window.resets_in_seconds)}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
 
       <dl className="facts">
         <dt>source</dt>

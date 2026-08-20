@@ -12717,6 +12717,11 @@ const ERROR_NOTE = {
   cooling_down: "browser read too recently",
   unsupported_platform: "no page this tool can read"
 };
+function toneFor(percent) {
+  if (percent >= 90) return "critical";
+  if (percent >= 70) return "warn";
+  return "ok";
+}
 function ProviderCard({ provider, forecast }) {
   if (!provider.answered) {
     const code = provider.error ?? "no_reading";
@@ -12733,44 +12738,39 @@ function ProviderCard({ provider, forecast }) {
     ] });
   }
   const binding = provider.binding_window;
-  const tone = binding ? binding.used_percent >= 90 ? "critical" : binding.used_percent >= 70 ? "warn" : "ok" : "silent";
-  const percent = binding ? binding.used_percent : 0;
+  const tone = binding ? toneFor(binding.used_percent) : "silent";
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("article", { className: `card card--${tone}`, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: provider.provider }),
       provider.plan ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pill", children: provider.plan }) : null,
       /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `pill pill--${provider.freshness}`, children: FRESHNESS_NOTE[provider.freshness] ?? provider.freshness })
     ] }),
-    binding ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "binding", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "binding__label", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: binding.label }),
-        " binds",
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "binding__percent", children: [
-          percent.toFixed(1),
-          "% used"
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "track", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "fill", style: { width: `${Math.min(100, percent)}%` } }) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "binding__reset", children: [
-        "resets in ",
-        formatDuration(binding.resets_in_seconds)
-      ] })
-    ] }) : null,
-    provider.windows.length > 1 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "windows", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "window" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "used" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "resets in" })
-      ] }) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: provider.windows.map((window2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: window2.label }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { children: [
-          window2.used_percent.toFixed(1),
-          "%"
+    /* @__PURE__ */ jsxRuntimeExports.jsx("ul", { className: "pools", children: provider.windows.map((window2) => {
+      const binds = Boolean(binding) && window2.label === binding?.label;
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { className: binds ? "pool pool--binds" : "pool", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pool__head", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "pool__label", children: [
+            window2.label,
+            binds ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pool__binds", children: "binds" }) : null
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "pool__percent", children: [
+            window2.used_percent.toFixed(1),
+            "%"
+          ] })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: formatDuration(window2.resets_in_seconds) })
-      ] }, window2.label)) })
-    ] }) : null,
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "track", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "div",
+          {
+            className: `fill fill--${toneFor(window2.used_percent)}`,
+            style: { width: `${Math.min(100, Math.max(0, window2.used_percent))}%` }
+          }
+        ) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pool__reset", children: [
+          "resets in ",
+          formatDuration(window2.resets_in_seconds)
+        ] })
+      ] }, window2.label);
+    }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("dl", { className: "facts", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("dt", { children: "source" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("dd", { children: SOURCE_NOTE[provider.source] ?? provider.source }),
