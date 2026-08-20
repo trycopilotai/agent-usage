@@ -171,6 +171,79 @@ def test_codex_falls_back_to_the_key_name_without_a_stated_length():
     assert codex.parse(body, NOW).windows[0].label == "weekly"
 
 
+def test_codex_reports_an_exhausted_feature_pool():
+    # The live shape: the top level pool idle, a named feature
+    # pool fully spent. Reporting only the first shows headroom
+    # the account does not have.
+    body = {
+        "rate_limit": {
+            "primary_window": {
+                "used_percent": 0,
+                "limit_window_seconds": 604800,
+                "reset_after_seconds": 604800,
+            },
+            "secondary_window": None,
+        },
+        "additional_rate_limits": [
+            {
+                "limit_name": "GPT-5.3-Codex-Spark",
+                "metered_feature": "codex_bengalfox",
+                "rate_limit": {
+                    "allowed": False,
+                    "limit_reached": True,
+                    "primary_window": {
+                        "used_percent": 0,
+                        "limit_window_seconds": 18000,
+                        "reset_after_seconds": 18000,
+                    },
+                    "secondary_window": {
+                        "used_percent": 100,
+                        "limit_window_seconds": 604800,
+                        "reset_after_seconds": 270936,
+                    },
+                },
+            }
+        ],
+    }
+    observation = codex.parse(body, NOW)
+    labels = [window.label for window in observation.windows]
+    assert "1-week" in labels
+    assert "GPT-5.3-Codex-Spark 5-hour" in labels
+    assert "GPT-5.3-Codex-Spark 1-week" in labels
+
+    # The spent pool is what is closest to stopping work, so it
+    # is what binds.
+    binding = observation.binding_window()
+    assert binding.used_percent == 100.0
+    assert binding.label == "GPT-5.3-Codex-Spark 1-week"
+
+
+def test_codex_without_additional_limits_is_unchanged():
+    body = {
+        "rate_limit": {
+            "primary_window": {
+                "used_percent": 12,
+                "limit_window_seconds": 18000,
+                "reset_after_seconds": 900,
+            }
+        }
+    }
+    windows = codex.parse(body, NOW).windows
+    assert [w.label for w in windows] == ["5-hour"]
+
+
+def test_codex_ignores_an_unnamed_additional_limit():
+    body = {
+        "rate_limit": {"primary_window": {"used_percent": 5}},
+        "additional_rate_limits": [
+            {"rate_limit": {"primary_window": {"used_percent": 99}}},
+            "not a dict",
+        ],
+    }
+    labels = [w.label for w in codex.parse(body, NOW).windows]
+    assert labels == ["5-hour"]
+
+
 def test_window_label_names_the_common_periods():
     assert base.window_label(300) == "5-hour"
     assert base.window_label(10080) == "1-week"

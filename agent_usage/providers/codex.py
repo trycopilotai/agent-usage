@@ -11,6 +11,12 @@ weekly one on the same account. Every window states its own
 `limit_window_seconds`, so the label is read from that and
 the key is used only as a fallback for a response that omits
 it.
+
+The response also carries `additional_rate_limits`, a list of
+separately metered features with their own pools. Those are
+read too. An account has been observed with the top level
+pool at zero percent while a named feature pool sat at a
+hundred, which reads as full headroom when there is none.
 """
 
 from __future__ import annotations
@@ -59,13 +65,16 @@ def window_label(entry: dict, fallback: str) -> str:
     return base.window_label(seconds / 60.0)
 
 
-def parse(body: Any, now: float) -> contract.Observation:
-    if not isinstance(body, dict):
-        return contract.failed(PROVIDER, contract.ERROR_MALFORMED, now=now)
-    limits = body.get("rate_limit")
-    if not isinstance(limits, dict):
-        return contract.failed(PROVIDER, contract.ERROR_MALFORMED, now=now)
+def _pool_windows(limits: Any, prefix: str = "") -> list[contract.Window]:
+    """Every window in one rate_limit object.
+
+    `prefix` names the metered feature a pool belongs to, so a
+    card carrying several pools says which limit each row is
+    about rather than showing two rows called "1-week".
+    """
     windows: list[contract.Window] = []
+    if not isinstance(limits, dict):
+        return windows
     for key, label in WINDOWS:
         entry = limits.get(key)
         if not isinstance(entry, dict):
@@ -77,11 +86,47 @@ def parse(body: Any, now: float) -> contract.Observation:
         remaining = base.number(entry.get("reset_after_seconds"))
         windows.append(
             contract.Window(
-                label=window_label(entry, label),
+                label=prefix + window_label(entry, label),
                 used_percent=percent,
                 resets_in_seconds=remaining,
             )
         )
+    return windows
+
+
+def _additional_windows(body: dict) -> list[contract.Window]:
+    """The pools of separately metered features.
+
+    Each entry names its feature and carries a rate_limit of
+    the same shape as the top level one. They are reported
+    because an exhausted feature pool is a real limit on the
+    work this account can do, and leaving it out shows
+    headroom that does not exist.
+    """
+    entries = body.get("additional_rate_limits")
+    if not isinstance(entries, list):
+        return []
+    windows: list[contract.Window] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("limit_name")
+        if not isinstance(name, str) or not name:
+            name = entry.get("metered_feature")
+        if not isinstance(name, str) or not name:
+            continue
+        windows.extend(_pool_windows(entry.get("rate_limit"), name + " "))
+    return windows
+
+
+def parse(body: Any, now: float) -> contract.Observation:
+    if not isinstance(body, dict):
+        return contract.failed(PROVIDER, contract.ERROR_MALFORMED, now=now)
+    limits = body.get("rate_limit")
+    if not isinstance(limits, dict):
+        return contract.failed(PROVIDER, contract.ERROR_MALFORMED, now=now)
+    windows = _pool_windows(limits)
+    windows.extend(_additional_windows(body))
     if not windows:
         return contract.failed(PROVIDER, contract.ERROR_MALFORMED, now=now)
     plan = body.get("plan_type")
