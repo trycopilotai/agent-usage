@@ -10,9 +10,19 @@ credential, a token, or an account identifier.
 
 It reads credentials that other clients already stored on
 this machine, and it sends each one only to the provider it
-belongs to. It never writes, refreshes, or relays a
-credential, and no command prints one. `doctor` reports
-presence, expiry, and which location a credential came from.
+belongs to. It never relays a credential, and no command
+prints one. `doctor` reports presence, expiry, and which
+location a credential came from.
+
+It writes exactly one credential. An expired Claude access
+token is renewed against the provider's own token endpoint
+and the result replaces the file the Claude client already
+uses, atomically and at mode 600. The provider rotates the
+refresh token on every use, so a renewal that is not stored
+would leave the account holding a spent token; every failure
+path leaves the file untouched. A credential held in the
+macOS keychain is never renewed this way, because the file
+this tool could write is not the store the client reads.
 
 A storage allowlist decides what may be persisted. Page
 HTML, cookies, headers, DOM snapshots, prompt text, and
