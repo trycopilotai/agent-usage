@@ -26,6 +26,7 @@ const ERROR_NOTE: Record<string, string> = {
   no_credential: 'not signed in on this machine',
   credential_expired: 'signed in once, needs refreshing',
   unauthorized: 'credential rejected',
+  no_allowance: 'answered, but this account has no metered allowance',
   rate_limited: 'asked too often',
   endpoint_unavailable: 'could not be reached',
   malformed_response: 'answered in a shape this adapter could not read',
@@ -47,15 +48,26 @@ export function ProviderCard({ provider, forecast }: Props) {
           <span className="pill pill--silent">no answer</span>
         </header>
         <p className="reason">
-          <code>{code}</code> {ERROR_NOTE[code] ?? ''}
+          <code>{code}</code>{' '}
+          {ERROR_NOTE[code] ?? 'reported a state this page has no words for yet'}
         </p>
       </article>
     );
   }
 
   const binding = provider.binding_window;
+  // Missing is never zero, one level down. An answered provider
+  // always carries a window today, so this is a guard rather
+  // than a path the API reaches -- but defaulting the percent to
+  // zero would paint a card green for a limit nobody measured.
+  const tone = binding
+    ? binding.used_percent >= 90
+      ? 'critical'
+      : binding.used_percent >= 70
+        ? 'warn'
+        : 'ok'
+    : 'silent';
   const percent = binding ? binding.used_percent : 0;
-  const tone = percent >= 90 ? 'critical' : percent >= 70 ? 'warn' : 'ok';
 
   return (
     <article className={`card card--${tone}`}>
