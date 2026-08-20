@@ -39,17 +39,10 @@ def collect(now: float | None = None, **kwargs: Any) -> contract.Observation:
     return parse(body, moment)
 
 
-def window_label(minutes: float) -> str:
-    """Name a window from its duration, not its position."""
-    if minutes <= 0:
-        return "window"
-    if minutes % (60 * 24 * 7) == 0:
-        return str(int(minutes // (60 * 24 * 7))) + "-week"
-    if minutes % (60 * 24) == 0:
-        return str(int(minutes // (60 * 24))) + "-day"
-    if minutes % 60 == 0:
-        return str(int(minutes // 60)) + "-hour"
-    return str(int(minutes)) + "-minute"
+# Kept as a name in this module because the quirk it serves is
+# documented here, but the rule belongs to every adapter that
+# reads a window duration.
+window_label = base.window_label
 
 
 def _quota(detail: Any, label: str, now: float) -> contract.Window | None:

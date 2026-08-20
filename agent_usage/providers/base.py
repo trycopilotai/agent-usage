@@ -57,6 +57,25 @@ def _status_code(status: int) -> str:
     return contract.ERROR_UNAVAILABLE
 
 
+def window_label(minutes: float) -> str:
+    """Name a window from its duration, not its position.
+
+    Providers move their windows. A label taken from where a
+    window sits in the response says nothing about how long it
+    covers, and goes quietly wrong the day the provider
+    reshuffles them.
+    """
+    if minutes <= 0:
+        return "window"
+    if minutes % (60 * 24 * 7) == 0:
+        return str(int(minutes // (60 * 24 * 7))) + "-week"
+    if minutes % (60 * 24) == 0:
+        return str(int(minutes // (60 * 24))) + "-day"
+    if minutes % 60 == 0:
+        return str(int(minutes // 60)) + "-hour"
+    return str(int(minutes)) + "-minute"
+
+
 def number(value: Any) -> float | None:
     """Coerce the shapes providers actually send.
 

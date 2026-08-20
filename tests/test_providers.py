@@ -130,6 +130,55 @@ def test_no_allowance_is_in_the_closed_vocabulary():
     assert contract.ERROR_NO_ALLOWANCE in contract.ERROR_CODES
 
 
+def test_codex_names_a_window_from_its_own_length():
+    # The live shape that exposed this: primary_window carrying a
+    # weekly period while the adapter called it "5-hour".
+    body = {
+        "rate_limit": {
+            "primary_window": {
+                "used_percent": 0,
+                "limit_window_seconds": 604800,
+                "reset_after_seconds": 604800,
+            },
+            "secondary_window": None,
+        }
+    }
+    windows = codex.parse(body, NOW).windows
+    assert len(windows) == 1
+    assert windows[0].label == "1-week"
+    assert windows[0].resets_in_seconds == 604800.0
+
+
+def test_codex_still_names_a_five_hour_window_correctly():
+    body = {
+        "rate_limit": {
+            "primary_window": {
+                "used_percent": 98,
+                "limit_window_seconds": 18000,
+                "reset_after_seconds": 1200,
+            }
+        }
+    }
+    window = codex.parse(body, NOW).windows[0]
+    assert window.label == "5-hour"
+    assert window.used_percent == 98.0
+
+
+def test_codex_falls_back_to_the_key_name_without_a_stated_length():
+    body = {"rate_limit": {"primary_window": {"used_percent": 10}}}
+    assert codex.parse(body, NOW).windows[0].label == "5-hour"
+    body = {"rate_limit": {"secondary_window": {"used_percent": 10}}}
+    assert codex.parse(body, NOW).windows[0].label == "weekly"
+
+
+def test_window_label_names_the_common_periods():
+    assert base.window_label(300) == "5-hour"
+    assert base.window_label(10080) == "1-week"
+    assert base.window_label(1440) == "1-day"
+    assert base.window_label(30) == "30-minute"
+    assert base.window_label(0) == "window"
+
+
 def test_number_coercion_rejects_bool():
     assert base.number(True) is None
     assert base.number("12.5") == 12.5
