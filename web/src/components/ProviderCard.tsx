@@ -4,6 +4,7 @@ import {
   hasForecast,
   isFallbackGone,
   isSpendingNow,
+  spentFeatures,
 } from '../types';
 
 type Props = { provider: Provider; forecast: Forecast | null };
@@ -73,6 +74,7 @@ export function ProviderCard({ provider, forecast }: Props) {
   // than a path the API reaches -- but defaulting the percent to
   // zero would paint a card green for a limit nobody measured.
   const tone = binding ? toneFor(binding.used_percent) : 'silent';
+  const spent = spentFeatures(provider);
 
   return (
     <article className={`card card--${tone}`}>
@@ -114,25 +116,45 @@ export function ProviderCard({ provider, forecast }: Props) {
             </li>
           );
         })}
+        {/* Credits sit with the limits rather than in the
+            facts below, because the provider's own usage page
+            shows them as one more thing you can run out of,
+            beside the pools. */}
+        <li className="pool pool--credits">
+          <div className="pool__head">
+            <span className="pool__label">credits</span>
+            <span className="pool__percent">
+              {isSpendingNow(provider.credits) ? (
+                <span className="spend">spending now</span>
+              ) : isFallbackGone(provider.credits) ? (
+                <span className="spent">used up</span>
+              ) : provider.credits.state === 'unavailable' ? (
+                <span className="muted">not reported</span>
+              ) : (
+                provider.credits.state
+              )}
+            </span>
+          </div>
+          {provider.credits.detail ? (
+            <div className="pool__reset">{provider.credits.detail}</div>
+          ) : null}
+        </li>
       </ul>
+
+      {/* Binding on the account pool means this card can show
+          headroom while a capability cannot run at all. Saying
+          which one is what keeps that from being silent. */}
+      {spent.length > 0 ? (
+        <p className="warning" role="status">
+          Fully spent: {spent.map((window) => window.label).join(', ')}. The
+          governing limit above still has room, but that capability cannot run
+          until it resets.
+        </p>
+      ) : null}
 
       <dl className="facts">
         <dt>source</dt>
         <dd>{SOURCE_NOTE[provider.source] ?? provider.source}</dd>
-
-        <dt>credits</dt>
-        <dd>
-          {isSpendingNow(provider.credits) ? (
-            <span className="spend">spending now</span>
-          ) : isFallbackGone(provider.credits) ? (
-            <span className="spent">allowance used up, no fallback left</span>
-          ) : provider.credits.state === 'unavailable' ? (
-            <span className="muted">not reported</span>
-          ) : (
-            provider.credits.state
-          )}
-          {provider.credits.detail ? ` — ${provider.credits.detail}` : ''}
-        </dd>
 
         <dt>forecast</dt>
         <dd>

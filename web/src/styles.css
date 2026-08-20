@@ -255,6 +255,15 @@ h2 {
   color: var(--muted);
 }
 
+/* Credits are one more thing to run out of, but they are not
+   a metered window: there is no percentage and so no bar. The
+   rule keeps the row from reading as a pool whose bar failed
+   to render. */
+.pool--credits {
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
 .track {
   margin-top: 6px;
   height: 10px;
