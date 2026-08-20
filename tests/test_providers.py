@@ -169,11 +169,18 @@ def test_codex_reports_an_exhausted_feature_pool():
     assert "GPT-5.3-Codex-Spark 5-hour" in labels
     assert "GPT-5.3-Codex-Spark 1-week" in labels
 
-    # The spent pool is what is closest to stopping work, so it
-    # is what binds.
+    # The spent pool meters one capability. The account can
+    # still do everything else, so the account pool binds and
+    # the spent one is reported rather than reported as the
+    # account's limit.
     binding = observation.binding_window()
-    assert binding.used_percent == 100.0
-    assert binding.label == "GPT-5.3-Codex-Spark 1-week"
+    assert binding.label == "overall 1-week"
+    assert binding.used_percent == 0.0
+
+    # Not silently, though: it is still a full bar, and it is
+    # named as a spent capability.
+    spent = observation.spent_features()
+    assert [window.label for window in spent] == ["GPT-5.3-Codex-Spark 1-week"]
 
 
 def test_codex_without_additional_limits_is_unchanged():
@@ -218,8 +225,44 @@ def test_codex_reports_the_code_review_pool():
     observation = codex.parse(body, NOW)
     labels = [w.label for w in observation.windows]
     assert labels == ["overall 5-hour", "code review 1-week"]
-    # It is the closest to stopping work, so it binds.
-    assert observation.binding_window().label == "code review 1-week"
+    # Reported, but code review is one capability: the account
+    # pool is what governs.
+    assert observation.binding_window().label == "overall 5-hour"
+
+
+def test_codex_marks_feature_pools_as_feature_scope():
+    # The prefix is for a reader. The scope is what the binding
+    # rule is written against, and a prefix is not something a
+    # rule can be written against.
+    body = {
+        "rate_limit": {"primary_window": {"used_percent": 1}},
+        "additional_rate_limits": [
+            {"limit_name": "Spark", "rate_limit": {"primary_window": {"used_percent": 2}}}
+        ],
+        "code_review_rate_limit": {"primary_window": {"used_percent": 3}},
+    }
+    scopes = {w.label: w.scope for w in codex.parse(body, NOW).windows}
+    assert scopes == {
+        "overall 5-hour": contract.SCOPE_ACCOUNT,
+        "Spark 5-hour": contract.SCOPE_FEATURE,
+        "code review 5-hour": contract.SCOPE_FEATURE,
+    }
+
+
+def test_claude_per_model_pools_are_feature_scope():
+    body = {
+        "five_hour": {"utilization": 10.0},
+        "seven_day": {"utilization": 20.0},
+        "seven_day_opus": {"utilization": 99.0},
+    }
+    observation = claude.parse(body, NOW)
+    scopes = {w.label: w.scope for w in observation.windows}
+    assert scopes["5-hour"] == contract.SCOPE_ACCOUNT
+    assert scopes["7-day"] == contract.SCOPE_ACCOUNT
+    assert scopes["7-day opus"] == contract.SCOPE_FEATURE
+    # A nearly spent model pool does not become the account's
+    # answer to "how much is left".
+    assert observation.binding_window().label == "7-day"
 
 
 def test_codex_treats_a_null_code_review_pool_as_absent():

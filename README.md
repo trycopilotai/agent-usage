@@ -130,8 +130,8 @@ anything but loopback.
 python3 -m agent_usage.cli serve
 ```
 
-Then open <http://127.0.0.1:8787/ui/>. It shows the binding
-window for every provider, all windows, when each resets,
+Then open <http://127.0.0.1:8787/ui/>. It shows the governing
+limit for every provider, all windows, when each resets,
 credit state, a history line per provider, a forecast or the
 reason there is not one, and a collection health table.
 

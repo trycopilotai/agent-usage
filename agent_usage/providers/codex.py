@@ -25,6 +25,14 @@ account wide one. Two rows both called "1-week" that mean
 different limits are worse than no rows at all, because the
 reader cannot tell which of them is the one about to stop
 their work.
+
+The feature pools are marked as such, and that is what keeps
+them out of the binding choice. An exhausted Spark pool is a
+real limit on one capability, not a statement about the
+account: reporting it as the account's governing limit says
+this account can do nothing, when what is true is that it can
+do everything except one thing. It is still reported and still
+drawn, and `spent_features` is how a reader is told about it.
 """
 
 from __future__ import annotations
@@ -83,12 +91,20 @@ def window_label(entry: dict, fallback: str) -> str:
     return base.window_label(seconds / 60.0)
 
 
-def _pool_windows(limits: Any, prefix: str = "") -> list[contract.Window]:
+def _pool_windows(
+    limits: Any,
+    prefix: str = "",
+    scope: str = contract.SCOPE_ACCOUNT,
+) -> list[contract.Window]:
     """Every window in one rate_limit object.
 
     `prefix` names the metered feature a pool belongs to, so a
     card carrying several pools says which limit each row is
     about rather than showing two rows called "1-week".
+
+    `scope` says whether the pool limits the account or one
+    capability inside it. The prefix is for a reader; the scope
+    is for the code that has to choose which pool governs.
     """
     windows: list[contract.Window] = []
     if not isinstance(limits, dict):
@@ -107,6 +123,7 @@ def _pool_windows(limits: Any, prefix: str = "") -> list[contract.Window]:
                 label=prefix + window_label(entry, label),
                 used_percent=percent,
                 resets_in_seconds=remaining,
+                scope=scope,
             )
         )
     return windows
@@ -133,7 +150,7 @@ def _additional_windows(body: dict) -> list[contract.Window]:
             name = entry.get("metered_feature")
         if not isinstance(name, str) or not name:
             continue
-        windows.extend(_pool_windows(entry.get("rate_limit"), name + " "))
+        windows.extend(_pool_windows(entry.get("rate_limit"), name + " ", contract.SCOPE_FEATURE))
     return windows
 
 
@@ -145,7 +162,7 @@ def _code_review_windows(body: dict) -> list[contract.Window]:
     not used it, which is not the same as an account that has
     no such limit.
     """
-    return _pool_windows(body.get(CODE_REVIEW_KEY), CODE_REVIEW_PREFIX)
+    return _pool_windows(body.get(CODE_REVIEW_KEY), CODE_REVIEW_PREFIX, contract.SCOPE_FEATURE)
 
 
 def parse(body: Any, now: float) -> contract.Observation:

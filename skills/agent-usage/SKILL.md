@@ -69,10 +69,21 @@ and the reading is stale, run `collect` first.
 and is the least precise. Mention that when it is what you
 are quoting.
 
-`binding_window` is the window closest to running out. It is
-the one to quote when the user asks a single question like
-"how much is left". Do not average windows of different
+`binding_window` is the limit that governs the account. It
+is the one to quote when the user asks a single question
+like "how much is left". Do not average windows of different
 durations together.
+
+Every window carries a `scope`. An `account` window limits
+the work the account can do at all; a `feature` window meters
+one capability inside it, like a single model or a named
+tool. Only account windows bind, so a spent feature pool never
+becomes the answer to "how much is left" -- the account can
+still do everything else.
+
+Say so, though. When any feature window is at 100, name the
+capability that is spent alongside the account figure, or the
+reader hears "plenty left" about work that cannot run.
 
 ## Forecasts decline on purpose
 
@@ -165,6 +176,13 @@ answered. Prefer the lowest. Exclude any provider whose
 credits are `exhausted`, and mention when a provider was
 excluded because it did not answer rather than because it
 was busy.
+
+Check the feature windows before recommending. A provider can
+rank first on its account limit while the capability the work
+needs is at 100, and routing there sends the work somewhere
+it cannot run. If the task names a capability that has a
+spent feature window, say so and recommend the next provider
+instead.
 
 ## Never do these
 
