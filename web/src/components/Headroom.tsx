@@ -1,5 +1,5 @@
 import type { Provider } from '../types';
-import { headroomOrder } from '../types';
+import { headroomOrder, spentFeatures } from '../types';
 
 /** Where to send work now, and who was excluded and why. */
 export function Headroom({ providers }: { providers: Provider[] }) {
@@ -27,6 +27,18 @@ export function Headroom({ providers }: { providers: Provider[] }) {
               % used
               {provider.credits.state === 'exhausted' ? (
                 <span className="muted"> — no paid fallback left</span>
+              ) : null}
+              {/* Ranked on the account limit, which is right,
+                  and misleading on its own if the work needs a
+                  capability that is spent. */}
+              {spentFeatures(provider).length > 0 ? (
+                <span className="muted">
+                  {' '}
+                  — but spent:{' '}
+                  {spentFeatures(provider)
+                    .map((window) => window.label)
+                    .join(', ')}
+                </span>
               ) : null}
             </li>
           ))}

@@ -18,6 +18,16 @@ export type Source = 'api' | 'browser_json' | 'browser_text';
 
 export type Freshness = 'live' | 'cached' | 'stale';
 
+/** What a window limits.
+ *
+ * `account` governs the work the account can do at all.
+ * `feature` meters one capability inside it. Only account
+ * windows bind, so a spent feature pool never becomes the
+ * answer to "how much is left". Optional because a response
+ * from an older collector will not carry it; absent reads as
+ * `account`, which is what those responses meant. */
+export type WindowScope = 'account' | 'feature';
+
 export type UsageWindow = {
   label: string;
   /** Percent consumed, never remaining. */
@@ -25,6 +35,7 @@ export type UsageWindow = {
   resets_in_seconds?: number | null;
   remaining?: number | null;
   limit?: number | null;
+  scope?: WindowScope;
 };
 
 export type Credits = {
@@ -45,7 +56,7 @@ export type Provider = {
   answered: boolean;
   /** Closed vocabulary. Present only when answered is false. */
   error?: string | null;
-  /** The window closest to running out. */
+  /** The limit that governs the account, not the fullest pool. */
   binding_window?: UsageWindow | null;
 };
 
@@ -109,6 +120,17 @@ export function isSpendingNow(credits: Credits): boolean {
 /** Credit drawn on and now used up, so there is no fallback. */
 export function isFallbackGone(credits: Credits): boolean {
   return credits.state === 'exhausted';
+}
+
+/** Feature pools with nothing left.
+ *
+ * The account limit can show headroom while a capability is
+ * unusable. Ranking on the account figure is right, and
+ * saying nothing about the spent capability is not. */
+export function spentFeatures(provider: Provider): UsageWindow[] {
+  return provider.windows.filter(
+    (window) => window.scope === 'feature' && window.used_percent >= 100,
+  );
 }
 
 export function headroomOrder(providers: Provider[]): Provider[] {

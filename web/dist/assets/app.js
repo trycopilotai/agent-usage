@@ -12533,6 +12533,11 @@ function isSpendingNow(credits) {
 function isFallbackGone(credits) {
   return credits.state === "exhausted";
 }
+function spentFeatures(provider) {
+  return provider.windows.filter(
+    (window2) => window2.scope === "feature" && window2.used_percent >= 100
+  );
+}
 function headroomOrder(providers) {
   return providers.filter((p) => p.answered && p.binding_window).sort(
     (a, b) => a.binding_window.used_percent - b.binding_window.used_percent
@@ -12564,7 +12569,13 @@ function Headroom({ providers }) {
         1
       ),
       "% used",
-      provider.credits.state === "exhausted" ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "muted", children: " — no paid fallback left" }) : null
+      provider.credits.state === "exhausted" ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "muted", children: " — no paid fallback left" }) : null,
+      spentFeatures(provider).length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "muted", children: [
+        " ",
+        "— but spent:",
+        " ",
+        spentFeatures(provider).map((window2) => window2.label).join(", ")
+      ] }) : null
     ] }, provider.provider)) }),
     silent.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "muted", children: [
       "Not ranked because they did not answer:",
@@ -12739,46 +12750,56 @@ function ProviderCard({ provider, forecast }) {
   }
   const binding = provider.binding_window;
   const tone = binding ? toneFor(binding.used_percent) : "silent";
+  const spent = spentFeatures(provider);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("article", { className: `card card--${tone}`, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: provider.provider }),
       provider.plan ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pill", children: provider.plan }) : null,
       /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `pill pill--${provider.freshness}`, children: FRESHNESS_NOTE[provider.freshness] ?? provider.freshness })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("ul", { className: "pools", children: provider.windows.map((window2) => {
-      const binds = Boolean(binding) && window2.label === binding?.label;
-      return /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { className: binds ? "pool pool--binds" : "pool", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pool__head", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "pool__label", children: [
-            window2.label,
-            binds ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pool__binds", children: "binds" }) : null
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("ul", { className: "pools", children: [
+      provider.windows.map((window2) => {
+        const binds = Boolean(binding) && window2.label === binding?.label;
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { className: binds ? "pool pool--binds" : "pool", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pool__head", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "pool__label", children: [
+              window2.label,
+              binds ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pool__binds", children: "binds" }) : null
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "pool__percent", children: [
+              window2.used_percent.toFixed(1),
+              "%"
+            ] })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "pool__percent", children: [
-            window2.used_percent.toFixed(1),
-            "%"
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "track", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "div",
+            {
+              className: `fill fill--${toneFor(window2.used_percent)}`,
+              style: { width: `${Math.min(100, Math.max(0, window2.used_percent))}%` }
+            }
+          ) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pool__reset", children: [
+            "resets in ",
+            formatDuration(window2.resets_in_seconds)
           ] })
+        ] }, window2.label);
+      }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { className: "pool pool--credits", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pool__head", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pool__label", children: "credits" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pool__percent", children: isSpendingNow(provider.credits) ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "spend", children: "spending now" }) : isFallbackGone(provider.credits) ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "spent", children: "used up" }) : provider.credits.state === "unavailable" ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "muted", children: "not reported" }) : provider.credits.state })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "track", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "div",
-          {
-            className: `fill fill--${toneFor(window2.used_percent)}`,
-            style: { width: `${Math.min(100, Math.max(0, window2.used_percent))}%` }
-          }
-        ) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pool__reset", children: [
-          "resets in ",
-          formatDuration(window2.resets_in_seconds)
-        ] })
-      ] }, window2.label);
-    }) }),
+        provider.credits.detail ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pool__reset", children: provider.credits.detail }) : null
+      ] })
+    ] }),
+    spent.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "warning", role: "status", children: [
+      "Fully spent: ",
+      spent.map((window2) => window2.label).join(", "),
+      ". The governing limit above still has room, but that capability cannot run until it resets."
+    ] }) : null,
     /* @__PURE__ */ jsxRuntimeExports.jsxs("dl", { className: "facts", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("dt", { children: "source" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("dd", { children: SOURCE_NOTE[provider.source] ?? provider.source }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("dt", { children: "credits" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("dd", { children: [
-        isSpendingNow(provider.credits) ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "spend", children: "spending now" }) : isFallbackGone(provider.credits) ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "spent", children: "allowance used up, no fallback left" }) : provider.credits.state === "unavailable" ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "muted", children: "not reported" }) : provider.credits.state,
-        provider.credits.detail ? ` — ${provider.credits.detail}` : ""
-      ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("dt", { children: "forecast" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("dd", { children: hasForecast(forecast) && forecast ? forecast.status === "window_spent" ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "spent", children: "already fully used" }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: formatDuration(forecast.seconds_until_exhausted?.value) }),
