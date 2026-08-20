@@ -47,6 +47,53 @@ def test_kimi_ignores_windows_in_other_units():
     assert kimi.parse(body, NOW).answered is False
 
 
+def test_grok_reads_a_subscription_window_of_queries():
+    # The shape the app's own route answers with, captured
+    # live: one shared pool, counted in queries, stating a
+    # window length and no reset instant.
+    body = {
+        "windowSizeSeconds": 7200,
+        "remainingQueries": 140,
+        "totalQueries": 140,
+        "lowEffortRateLimits": None,
+        "highEffortRateLimits": None,
+    }
+    observation = grok.parse(body, NOW)
+    assert observation.answered is True
+    window = observation.windows[0]
+    assert window.label == "2-hour"
+    assert window.used_percent == 0.0
+    assert window.limit == 140.0
+    assert window.remaining == 140.0
+    # A length is not an instant. Inventing a reset from it
+    # would put the reset two hours from whenever we happened
+    # to ask, which is not what was reported.
+    assert window.resets_in_seconds is None
+
+
+def test_grok_counts_spent_queries_not_remaining_ones():
+    body = {"windowSizeSeconds": 7200, "totalQueries": 200, "remainingQueries": 50}
+    # 150 of 200 spent. Reading the remaining figure as the
+    # used one would report a nearly full pool as a quarter
+    # full.
+    assert grok.parse(body, NOW).windows[0].used_percent == 75.0
+
+
+def test_grok_separates_a_zero_query_allowance_from_a_broken_body():
+    empty = {"windowSizeSeconds": 7200, "totalQueries": 0, "remainingQueries": 0}
+    assert grok.parse(empty, NOW).error == contract.ERROR_NO_ALLOWANCE
+
+    # A window size alone says nothing about a limit.
+    assert grok.parse({"windowSizeSeconds": 7200}, NOW).error == contract.ERROR_MALFORMED
+
+
+def test_grok_still_reads_the_billing_shape():
+    # The two shapes are told apart by what they carry, so the
+    # API key path must be untouched by the subscription one.
+    body = {"config": {"monthlyLimit": 100, "used": 25}}
+    assert grok.parse(body, NOW).windows[0].label == "monthly"
+
+
 def test_grok_accepts_numbers_strings_and_wrapped_values():
     body = {"config": {"monthlyLimit": {"val": "100"}, "used": "25"}}
     assert grok.parse(body, NOW).windows[0].used_percent == 25.0
