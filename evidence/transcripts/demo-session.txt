@@ -8,8 +8,7 @@ $ agent-usage doctor
     "claude",
     "codex",
     "grok",
-    "kimi",
-    "zai"
+    "kimi"
   ],
   "credentials": [
     {
@@ -35,27 +34,20 @@ $ agent-usage doctor
       "origin": "<varies by machine>",
       "present": "<varies by machine>",
       "provider": "kimi"
-    },
-    {
-      "expired": "<varies by machine>",
-      "origin": "<varies by machine>",
-      "present": "<varies by machine>",
-      "provider": "zai"
     }
   ],
   "providers": [
     "claude",
     "codex",
     "grok",
-    "kimi",
-    "zai"
+    "kimi"
   ],
   "schema": "trycopilotai/agent-usage/doctor/v1",
   "state_dir": "<temporary>"
 }
 
 $ agent-usage collect   # synthetic readings, seeded
-recorded 3 synthetic readings, 3 providers with no credential
+recorded 3 synthetic readings, 2 providers with no credential
 
 $ agent-usage report
 ## Provider usage
@@ -67,9 +59,8 @@ $ agent-usage report
 
 - grok: no answer (no_credential)
 - kimi: no answer (no_credential)
-- zai: no answer (no_credential)
 
-Read by agent-usage. 2 of 5 providers answered.
+Read by agent-usage. 2 of 4 providers answered.
 
 $ agent-usage forecast claude
 {
