@@ -65,10 +65,11 @@ code {
   }
 }
 
-/* A table of windows is the one thing here that cannot reflow,
+/* The health table is the one thing here that cannot reflow,
    so it scrolls inside its own box rather than widening the
-   page. */
-.windows {
+   page. The window table that used to need this is now a list
+   of bars, which reflows on its own. */
+.health__table {
   display: block;
   overflow-x: auto;
   max-width: 100%;
@@ -201,23 +202,54 @@ h2 {
   color: var(--muted);
 }
 
-.binding {
+.pools {
+  list-style: none;
   margin: 14px 0 6px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.binding__label {
+.pool__head {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
   font-size: 13px;
   color: var(--muted);
 }
 
-.binding__percent {
-  color: var(--text);
-  font-family: SFMono-Regular, Menlo, monospace;
+.pool__label {
+  /* A pool name can be long. It wraps rather than pushing the
+     percentage off the edge of the card. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
-.binding__reset {
+.pool--binds .pool__label {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.pool__binds {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.pool__percent {
+  color: var(--text);
+  font-family: SFMono-Regular, Menlo, monospace;
+  white-space: nowrap;
+}
+
+.pool__reset {
   margin-top: 6px;
   font-size: 12px;
   color: var(--muted);
@@ -237,15 +269,17 @@ h2 {
   background: var(--ok);
 }
 
-.card--warn .fill {
+/* Each bar answers for its own pool. Colouring by the card
+   would paint an idle pool red because a different pool on the
+   same card is full. */
+.fill--warn {
   background: var(--warn);
 }
 
-.card--critical .fill {
+.fill--critical {
   background: var(--critical);
 }
 
-.windows,
 .health__table {
   width: 100%;
   border-collapse: collapse;
@@ -253,7 +287,6 @@ h2 {
   font-size: 13px;
 }
 
-.windows th,
 .health__table th {
   text-align: left;
   font-weight: 500;
@@ -262,7 +295,6 @@ h2 {
   padding: 4px 6px;
 }
 
-.windows td,
 .health__table td {
   padding: 4px 6px;
   border-bottom: 1px solid rgba(33, 38, 45, 0.6);

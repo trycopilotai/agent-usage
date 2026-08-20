@@ -103,7 +103,7 @@ def test_codex_names_a_window_from_its_own_length():
     }
     windows = codex.parse(body, NOW).windows
     assert len(windows) == 1
-    assert windows[0].label == "1-week"
+    assert windows[0].label == "overall 1-week"
     assert windows[0].resets_in_seconds == 604800.0
 
 
@@ -118,15 +118,15 @@ def test_codex_still_names_a_five_hour_window_correctly():
         }
     }
     window = codex.parse(body, NOW).windows[0]
-    assert window.label == "5-hour"
+    assert window.label == "overall 5-hour"
     assert window.used_percent == 98.0
 
 
 def test_codex_falls_back_to_the_key_name_without_a_stated_length():
     body = {"rate_limit": {"primary_window": {"used_percent": 10}}}
-    assert codex.parse(body, NOW).windows[0].label == "5-hour"
+    assert codex.parse(body, NOW).windows[0].label == "overall 5-hour"
     body = {"rate_limit": {"secondary_window": {"used_percent": 10}}}
-    assert codex.parse(body, NOW).windows[0].label == "weekly"
+    assert codex.parse(body, NOW).windows[0].label == "overall weekly"
 
 
 def test_codex_reports_an_exhausted_feature_pool():
@@ -165,7 +165,7 @@ def test_codex_reports_an_exhausted_feature_pool():
     }
     observation = codex.parse(body, NOW)
     labels = [window.label for window in observation.windows]
-    assert "1-week" in labels
+    assert "overall 1-week" in labels
     assert "GPT-5.3-Codex-Spark 5-hour" in labels
     assert "GPT-5.3-Codex-Spark 1-week" in labels
 
@@ -187,7 +187,7 @@ def test_codex_without_additional_limits_is_unchanged():
         }
     }
     windows = codex.parse(body, NOW).windows
-    assert [w.label for w in windows] == ["5-hour"]
+    assert [w.label for w in windows] == ["overall 5-hour"]
 
 
 def test_codex_ignores_an_unnamed_additional_limit():
@@ -199,7 +199,78 @@ def test_codex_ignores_an_unnamed_additional_limit():
         ],
     }
     labels = [w.label for w in codex.parse(body, NOW).windows]
-    assert labels == ["5-hour"]
+    assert labels == ["overall 5-hour"]
+
+
+def test_codex_reports_the_code_review_pool():
+    # Metered separately from everything in
+    # additional_rate_limits, and in its own key.
+    body = {
+        "rate_limit": {"primary_window": {"used_percent": 5}},
+        "code_review_rate_limit": {
+            "primary_window": {
+                "used_percent": 80,
+                "limit_window_seconds": 604800,
+                "reset_after_seconds": 1000,
+            }
+        },
+    }
+    observation = codex.parse(body, NOW)
+    labels = [w.label for w in observation.windows]
+    assert labels == ["overall 5-hour", "code review 1-week"]
+    # It is the closest to stopping work, so it binds.
+    assert observation.binding_window().label == "code review 1-week"
+
+
+def test_codex_treats_a_null_code_review_pool_as_absent():
+    # Null means an account that has not used it, and a window
+    # at zero would claim a measurement nobody made.
+    body = {
+        "rate_limit": {"primary_window": {"used_percent": 5}},
+        "code_review_rate_limit": None,
+    }
+    assert [w.label for w in codex.parse(body, NOW).windows] == ["overall 5-hour"]
+
+
+def test_codex_every_pool_says_which_limit_it_is():
+    body = {
+        "rate_limit": {"primary_window": {"used_percent": 1, "limit_window_seconds": 604800}},
+        "additional_rate_limits": [
+            {
+                "limit_name": "Spark",
+                "rate_limit": {
+                    "primary_window": {"used_percent": 2, "limit_window_seconds": 604800}
+                },
+            }
+        ],
+        "code_review_rate_limit": {
+            "primary_window": {"used_percent": 3, "limit_window_seconds": 604800}
+        },
+    }
+    labels = [w.label for w in codex.parse(body, NOW).windows]
+    # Three pools of identical length. Unprefixed they would be
+    # three rows called "1-week" and the reader could not tell
+    # which limit each one is about.
+    assert labels == ["overall 1-week", "Spark 1-week", "code review 1-week"]
+    assert len(set(labels)) == 3
+
+
+def test_codex_reads_the_credits_the_response_states():
+    def credits_for(entry):
+        body = {"rate_limit": {"primary_window": {"used_percent": 1}}, "credits": entry}
+        return codex.parse(body, NOW).credits
+
+    assert credits_for({"has_credits": False}).state == contract.CREDIT_OFF
+    assert credits_for({"has_credits": True}).state == contract.CREDIT_AVAILABLE
+    assert credits_for({"unlimited": True}).state == contract.CREDIT_AVAILABLE
+    spent = credits_for({"has_credits": True, "overage_limit_reached": True})
+    assert spent.state == contract.CREDIT_EXHAUSTED
+
+    # Silence stays silence. A response with no credits object
+    # said nothing, which is not the same as saying no.
+    body = {"rate_limit": {"primary_window": {"used_percent": 1}}}
+    assert codex.parse(body, NOW).credits.state == contract.CREDIT_UNAVAILABLE
+    assert credits_for("not a dict").state == contract.CREDIT_UNAVAILABLE
 
 
 def test_window_label_names_the_common_periods():

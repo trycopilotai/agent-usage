@@ -72,9 +72,17 @@ prove the verifier fails when it should.
 
 Credentials are found where the client you already use
 stores them on this machine. That is usually the provider's
-own tool. They are never written, refreshed, or sent anywhere
-except to the provider they belong to, and no command prints
-one. Run `doctor` to see which were found.
+own tool. They are sent nowhere except to the provider they
+belong to, and no command prints one. Run `doctor` to see
+which were found.
+
+One credential is written. Claude's access token lasts eight
+hours, and on a machine where no Claude client runs there is
+nothing else to renew it, so this tool renews it and stores
+the result in the same file the client uses. That provider
+rotates the refresh token on every use, which means a renewal
+that is not stored locks the account out, so storing it is
+part of doing it at all. Nothing else is ever written.
 
 Three collectors. The first party HTTP API is what `collect`
 uses. `collect --browser` adds a headless browser fallback
