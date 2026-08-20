@@ -1,9 +1,9 @@
 {
   "agent": "Claude Code",
   "agent_version": "Opus 5",
-  "input_commit": "a78fb4c4d6a33c1026037d272ab18524487d4e53",
+  "input_commit": "76f00fc7c2abd109c364536c0f0c44af7aee2d34",
   "invocation": "sh scripts/demo.sh",
-  "invocation_date": "2026-08-17",
+  "invocation_date": "2026-08-19",
   "output_path": "evidence/transcripts/demo-session.txt",
   "output_sha256": "413c572d3e239d0f7f53e3170ea72fa15d16fefc6d1d3ae5175457ead2bf8119",
   "protocol_path": "skills/agent-usage/SKILL.md",
@@ -13,7 +13,7 @@
   "schema_version": 1,
   "source_sha256": {
     "agent_usage/cli.py": "f35b2d1381960ce3023454bb93dd6c6f27fbf6fdd8de03b656aed5f4ba36348b",
-    "agent_usage/contract.py": "36df35075e8cea5dde5d4c71af8cd6311917d84896cbbe2445f628e06fe294dd",
+    "agent_usage/contract.py": "aa4cd2b5ac855b3ce5792b3a22fde009821d6da4b2e319c54a078a78c2144290",
     "agent_usage/derive.py": "9c68879bfe78d287f8b8dba7293d84d2cb1e4f7d89dd2708756c41deb7de7104",
     "agent_usage/report.py": "8880679c43d7185b554a468adbc21ae69abbab6069d0b617abef8ca635b67ec0",
     "agent_usage/store.py": "0b8703812761a5bf5db609a1f8a7af9b58aed2b07e43491849190c4bfc17a967",
