@@ -117,9 +117,7 @@ def test_grok_separates_a_zero_allowance_from_a_broken_body():
 
     # A limit that is absent, or that is not a number at all, is
     # still the parser's problem and still reads as malformed.
-    assert (
-        grok.parse({"config": {"used": 1}}, NOW).error == contract.ERROR_MALFORMED
-    )
+    assert grok.parse({"config": {"used": 1}}, NOW).error == contract.ERROR_MALFORMED
     assert (
         grok.parse({"config": {"monthlyLimit": "nope", "used": 1}}, NOW).error
         == contract.ERROR_MALFORMED

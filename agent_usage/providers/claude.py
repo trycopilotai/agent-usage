@@ -6,6 +6,12 @@ touched, and a zero there means untouched rather than
 measured, so those windows are omitted. The overall five
 hour and seven day windows are always reported, including at
 zero, because there a zero is a measurement.
+
+An expired access token is renewed rather than reported. The
+credential is short lived and nothing else on a collector
+host refreshes it, so reporting the expiry means this
+provider goes dark twice a day and stays dark. See
+`renewal.py` for why that renewal has to store its result.
 """
 
 from __future__ import annotations
@@ -14,7 +20,7 @@ import time
 from typing import Any
 
 from .. import contract
-from . import base, credentials
+from . import base, credentials, renewal
 
 USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 OAUTH_BETA = "oauth-2025-04-20"
@@ -37,6 +43,8 @@ def collect(now: float | None = None, **kwargs: Any) -> contract.Observation:
     if not credential.present:
         return contract.failed(PROVIDER, contract.ERROR_NO_CREDENTIAL, now=moment)
     if credential.expired:
+        credential = _renewed(credential, moment, **kwargs)
+    if credential.expired:
         return contract.failed(PROVIDER, contract.ERROR_CREDENTIAL_EXPIRED, now=moment)
     headers = {
         "Authorization": "Bearer " + str(credential.token),
@@ -48,6 +56,28 @@ def collect(now: float | None = None, **kwargs: Any) -> contract.Observation:
     except base.HttpFailure as failure:
         return contract.failed(PROVIDER, failure.code, now=moment)
     return parse(body, moment)
+
+
+def _renewed(
+    credential: credentials.Credential, now: float, **kwargs: Any
+) -> credentials.Credential:
+    """Spend the refresh token, then find the credential again.
+
+    Only a credential that came from a file is renewed. On
+    macOS the keychain is the client's own store, and the file
+    this could write is not what the client reads back, so
+    renewing there would report success while changing nothing
+    that matters.
+
+    The credential is re-read rather than assembled from the
+    renewal's return, so that what this adapter goes on to use
+    is what actually landed on disk.
+    """
+    if credential.origin != "file":
+        return credential
+    if not renewal.renew_claude(home=kwargs.get("home"), now=now):
+        return credential
+    return credentials.claude(**kwargs)
 
 
 def parse(body: Any, now: float) -> contract.Observation:
