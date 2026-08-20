@@ -26,7 +26,6 @@ USAGE_RESPONSE_FRAGMENTS = {
     "codex": ("/backend-api/wham/usage", "/backend-api/usage"),
     "kimi": ("/coding/v1/usages", "/v1/usages"),
     "grok": ("/v1/billing", "/rest/usage", "/api/usage"),
-    "zai": ("/monitor/usage/quota", "/api/monitor/usage"),
 }
 
 # The page a provider renders its usage on.
@@ -35,7 +34,6 @@ USAGE_PAGES = {
     "codex": "https://chatgpt.com/codex/settings/usage",
     "kimi": "https://www.kimi.com/code/console",
     "grok": "https://grok.com/settings/usage",
-    "zai": "https://z.ai/manage-apikey/apikey-list",
 }
 
 BROWSER_PROVIDERS = tuple(sorted(USAGE_PAGES))

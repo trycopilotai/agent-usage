@@ -2,7 +2,7 @@
 
 Read how much of each AI provider's usage limit is left,
 when it resets, and which provider still has headroom.
-Supports Claude, Codex, Kimi, z.ai, and Grok from one
+Supports Claude, Codex, Kimi, and Grok from one
 command, one HTTP surface, and one agent skill.
 
 It answers from measured readings and declines when it
@@ -47,12 +47,11 @@ $ agent-usage report
 
 - grok: no answer (no_credential)
 - kimi: no answer (no_credential)
-- zai: no answer (no_credential)
 
-Read by agent-usage. 2 of 5 providers answered.
+Read by agent-usage. 2 of 4 providers answered.
 ```
 
-Three providers are named as not answering rather than shown
+Both providers are named as not answering rather than shown
 at zero, and the code says why. Asking for a forecast on the
 same data reports a measured burn rate, a projected
 exhaustion, and `resets_before_exhausted`, meaning the
@@ -73,8 +72,7 @@ prove the verifier fails when it should.
 
 Credentials are found where the client you already use
 stores them on this machine. That is usually the provider's
-own tool, though for z.ai it is the agent client that holds
-the key. They are sent nowhere except to the provider they
+own tool. They are sent nowhere except to the provider they
 belong to, and no command prints one. Run `doctor` to see
 which were found.
 

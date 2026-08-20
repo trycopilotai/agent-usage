@@ -1,7 +1,7 @@
 """Each adapter quirk, pinned so a rewrite cannot lose it."""
 
 from agent_usage import contract
-from agent_usage.providers import base, claude, codex, grok, kimi, registry, zai
+from agent_usage.providers import base, claude, codex, grok, kimi, registry
 
 NOW = 1755000000.0
 
@@ -45,46 +45,6 @@ def test_kimi_derives_percent_from_strings_and_names_by_duration():
 def test_kimi_ignores_windows_in_other_units():
     body = {"limits": [{"window": {"timeUnit": "TIME_UNIT_DAY", "duration": 1}, "detail": {}}]}
     assert kimi.parse(body, NOW).answered is False
-
-
-def test_zai_usage_field_is_the_limit_not_the_usage():
-    body = {
-        "success": True,
-        "data": {"limits": [{"unit": 3, "number": 5, "usage": 1000, "currentValue": 250}]},
-    }
-    window = zai.parse(body, NOW).windows[0]
-    # Reading the names at face value would report 75 percent
-    # remaining as 75 percent used, inverting the answer.
-    assert window.used_percent == 25.0
-    assert window.limit == 1000.0
-
-
-def test_zai_reset_is_epoch_milliseconds():
-    body = {
-        "success": True,
-        "data": {
-            "limits": [
-                {
-                    "unit": 3,
-                    "number": 1,
-                    "usage": 10,
-                    "currentValue": 1,
-                    "nextResetTime": (NOW + 3600) * 1000,
-                }
-            ]
-        },
-    }
-    assert round(zai.parse(body, NOW).windows[0].resets_in_seconds) == 3600
-
-
-def test_zai_skips_unknown_unit_codes_rather_than_guessing():
-    assert zai.window_label(99, 1) is None
-    assert zai.window_label(6, 1) == "weekly"
-    assert zai.window_label(3, 5) == "5-hour"
-
-
-def test_zai_reports_failure_carried_in_a_success_body():
-    assert zai.parse({"success": False, "msg": "nope"}, NOW).error == contract.ERROR_UNAVAILABLE
 
 
 def test_grok_accepts_numbers_strings_and_wrapped_values():
@@ -341,53 +301,10 @@ def test_registry_fails_closed_on_an_unknown_provider():
 
 
 def test_malformed_bodies_never_produce_windows():
-    for parse in (claude.parse, codex.parse, kimi.parse, zai.parse, grok.parse):
+    for parse in (claude.parse, codex.parse, kimi.parse, grok.parse):
         observation = parse({"unexpected": True}, NOW)
         assert observation.answered is False
         assert observation.windows == ()
-
-
-def test_zai_retries_once_with_the_raw_key_after_a_rejection(monkeypatch):
-    """The one retry in the package, and the reason for it."""
-    seen = []
-
-    def fake_get_json(url, headers):
-        seen.append(headers["Authorization"])
-        if len(seen) == 1:
-            raise base.HttpFailure(contract.ERROR_UNAUTHORIZED)
-        return {
-            "success": True,
-            "data": {"limits": [{"unit": 3, "number": 5, "usage": 100, "currentValue": 10}]},
-        }
-
-    monkeypatch.setattr(base, "get_json", fake_get_json)
-    monkeypatch.setattr(
-        zai.credentials,
-        "zai",
-        lambda **kwargs: zai.credentials.Credential("zai", present=True, token="KEY"),
-    )
-    observation = zai.collect(now=NOW)
-    assert observation.answered is True
-    # First as a bearer, then the raw key. Community tools
-    # disagree about which the endpoint accepts.
-    assert seen == ["Bearer KEY", "KEY"]
-
-
-def test_zai_does_not_retry_other_failures(monkeypatch):
-    seen = []
-
-    def fake_get_json(url, headers):
-        seen.append(headers["Authorization"])
-        raise base.HttpFailure(contract.ERROR_RATE_LIMITED)
-
-    monkeypatch.setattr(base, "get_json", fake_get_json)
-    monkeypatch.setattr(
-        zai.credentials,
-        "zai",
-        lambda **kwargs: zai.credentials.Credential("zai", present=True, token="KEY"),
-    )
-    assert zai.collect(now=NOW).error == contract.ERROR_RATE_LIMITED
-    assert len(seen) == 1
 
 
 def test_credit_states_the_adapters_actually_emit():
@@ -450,15 +367,6 @@ def test_providers_without_a_credit_field_say_unavailable():
     assert empty_pool.credits.state == contract.CREDIT_UNAVAILABLE
     assert empty_pool.credits.engaged is False
 
-    quota = zai.parse(
-        {
-            "success": True,
-            "data": {"limits": [{"unit": 3, "number": 5, "usage": 100, "currentValue": 10}]},
-        },
-        NOW,
-    )
-    assert quota.credits.state == contract.CREDIT_UNAVAILABLE
-
 
 def test_credential_discovery_finds_each_client_where_it_writes(tmp_path):
     import json as _json
@@ -478,8 +386,6 @@ def test_credential_discovery_finds_each_client_where_it_writes(tmp_path):
 
     # The documented environment fallback, which belongs to
     # that client's own convention rather than to this tool.
-    assert credentials.zai(home=tmp_path, environ={}).present is False
-    assert credentials.zai(home=tmp_path, environ={"ZAI_API_KEY": "k"}).origin == "environment"
 
     assert credentials.claude(home=tmp_path, runner=lambda *a, **k: None).present is False
     for described in credentials.describe_all(home=tmp_path, environ={}):

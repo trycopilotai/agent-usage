@@ -3,8 +3,8 @@ name: agent-usage
 description: >-
   Read how much of each AI provider's usage limit is left,
   when it resets, and which provider to route work to. Use
-  when the user asks how much Claude, Codex, Grok, Kimi, or
-  z.ai quota remains, when a limit resets, how fast they are
+  when the user asks how much Claude, Codex, Grok, or Kimi
+  quota remains, when a limit resets, how fast they are
   burning through one, whether they will run out before a
   reset, or which provider has headroom right now. Also use
   before starting long or expensive work that could hit a

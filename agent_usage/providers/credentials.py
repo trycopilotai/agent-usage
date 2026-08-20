@@ -188,25 +188,6 @@ def _kimi_config_key(path: Path) -> str:
     return ""
 
 
-def zai(
-    home: Path | None = None,
-    environ: dict[str, str] | None = None,
-    runner: Any = None,
-) -> Credential:
-    """The agent auth file, then the documented variable."""
-    document = _read_json(_home(home) / ".pi" / "agent" / "auth.json")
-    entry = _nested(document, "zai")
-    if isinstance(entry, dict):
-        key = entry.get("key")
-        if isinstance(key, str) and key:
-            return Credential("zai", present=True, token=key, origin="file")
-    values = os.environ if environ is None else environ
-    key = values.get("ZAI_API_KEY")
-    if isinstance(key, str) and key:
-        return Credential("zai", present=True, token=key, origin="environment")
-    return Credential("zai", present=False)
-
-
 def grok(
     home: Path | None = None,
     environ: dict[str, str] | None = None,
@@ -237,7 +218,6 @@ DISCOVERY = {
     "claude": claude,
     "codex": codex,
     "kimi": kimi,
-    "zai": zai,
     "grok": grok,
 }
 

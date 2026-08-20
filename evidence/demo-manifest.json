@@ -1,13 +1,13 @@
 {
   "agent": "Claude Code",
   "agent_version": "Opus 5",
-  "input_commit": "76f00fc7c2abd109c364536c0f0c44af7aee2d34",
+  "input_commit": "39a254b0e2a9ad8b878c3f5bb35ea4764629e26a",
   "invocation": "sh scripts/demo.sh",
-  "invocation_date": "2026-08-19",
+  "invocation_date": "2026-08-20",
   "output_path": "evidence/transcripts/demo-session.txt",
-  "output_sha256": "413c572d3e239d0f7f53e3170ea72fa15d16fefc6d1d3ae5175457ead2bf8119",
+  "output_sha256": "152e47b007a18cf4db83c2246e1ffaca6c640d79ee2b64518dd13500f9498d10",
   "protocol_path": "skills/agent-usage/SKILL.md",
-  "protocol_sha256": "4a56e4a4e8f60da808d2f6aa6ada4c2c49c744dbea2d905fb3ad1445f8cfde1e",
+  "protocol_sha256": "6099a665a95295aa453796504182750b57498e7f1dd20a08270c2a8001332968",
   "readings": "synthetic",
   "readings_note": "Every number in the transcript is invented. No provider account was contacted and no real quota appears.",
   "schema_version": 1,
@@ -18,7 +18,7 @@
     "agent_usage/report.py": "8880679c43d7185b554a468adbc21ae69abbab6069d0b617abef8ca635b67ec0",
     "agent_usage/store.py": "0b8703812761a5bf5db609a1f8a7af9b58aed2b07e43491849190c4bfc17a967",
     "scripts/demo.sh": "67e7a8e855fc4b164eee700e7b0a1a6df75391e0022f0aed80222085fb8cff3d",
-    "scripts/seed_demo.py": "fd610488831f7a278cec26d18ef651d738a76e390da42f416167530e7bce9b02"
+    "scripts/seed_demo.py": "931c36b1763ddb4ff592624e9316eb9a7799f8ceacb0bf2a8c9a58610882bca0"
   },
   "transcript_edited": false
 }
