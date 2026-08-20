@@ -74,10 +74,28 @@ jobs:
           echo "$snapshot" | grep -q 'trycopilotai/agent-usage/api/v1'
 
           # The interface is in the image, not merely built
-          # beside it: the document and both assets must load.
-          curl -fsS http://127.0.0.1:8787/ui/ | grep -q 'assets/app.js'
-          curl -fsS -o /dev/null http://127.0.0.1:8787/ui/assets/app.js
-          curl -fsS -o /dev/null http://127.0.0.1:8787/ui/assets/app.css
+          # beside it: the document and every asset it names
+          # must load. The names carry a content hash, so they
+          # are read out of the document rather than written
+          # down here -- a hardcoded name would pass by being
+          # stale, or fail for having changed.
+          document="$(curl -fsS http://127.0.0.1:8787/ui/)"
+          echo "$document" | grep -q 'assets/app-'
+          assets="$(echo "$document" |
+            grep -o 'assets/[A-Za-z0-9._-]*' | sort -u)"
+          test -n "$assets"
+          for asset in $assets; do
+            curl -fsS -o /dev/null "http://127.0.0.1:8787/ui/$asset"
+          done
+
+          # A hashed asset is served as permanently cacheable,
+          # and the document that names it is never cached, or
+          # a new build is never discovered.
+          first="$(echo "$assets" | head -n 1)"
+          curl -fsS -D - -o /dev/null "http://127.0.0.1:8787/ui/$first" |
+            grep -qi 'cache-control: max-age=31536000, immutable'
+          curl -fsS -D - -o /dev/null http://127.0.0.1:8787/ui/ |
+            grep -qi 'cache-control: no-cache, must-revalidate'
 
           # It runs unprivileged, which the README states.
           test "$(docker exec agent-usage-smoke id -u)" = "10001"

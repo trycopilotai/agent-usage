@@ -558,6 +558,60 @@ def test_the_ui_routes_resolve():
         server.server_close()
 
 
+def test_the_entry_document_is_never_cached_and_its_assets_always_are():
+    """The two halves of cache busting, which only work together.
+
+    A hashed asset can be kept forever because a different
+    build has a different name. That is only safe if the
+    document naming it is re-read every time, or the browser
+    keeps asking for the build it already has and a deploy is
+    never discovered.
+    """
+    import re
+
+    from agent_usage.api import UI_ROOT
+
+    if not UI_ROOT.is_dir():
+        return
+
+    database = _db()
+    store.connect(database).close()
+    server = _serve(database)
+    port = server.server_address[1]
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:%d/ui/" % port) as response:
+            document = response.read().decode()
+            assert response.headers["Cache-Control"] == "no-cache, must-revalidate"
+
+        # Read the asset names out of the document rather than
+        # writing them down: they carry a content hash and
+        # change with the build.
+        assets = sorted(set(re.findall(r"assets/[A-Za-z0-9._-]+", document)))
+        assert assets, "the built document names no assets"
+        for asset in assets:
+            url = "http://127.0.0.1:%d/ui/%s" % (port, asset)
+            with urllib.request.urlopen(url) as response:
+                assert response.status == 200
+                assert response.headers["Cache-Control"] == "max-age=31536000, immutable"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_a_usage_reading_is_never_cacheable():
+    """A measurement of right now, kept by nobody."""
+    database = _db()
+    store.connect(database).close()
+    server = _serve(database)
+    port = server.server_address[1]
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:%d/api/v1/snapshot" % port) as r:
+            assert r.headers["Cache-Control"] == "no-store"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 def test_a_routable_bind_needs_an_explicit_opt_in():
     """Refused by default, permitted only when asked for.
 

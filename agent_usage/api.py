@@ -35,6 +35,24 @@ DEFAULT_PORT = 8787
 SCREENSHOT_PREFIX = "/api/v1/screenshots/"
 UI_PREFIX = "/ui/"
 
+# A usage reading is never cacheable: it is a measurement of
+# right now, and a stale one is the thing this whole package
+# exists to avoid reporting.
+CACHE_NEVER = "no-store"
+
+# The entry document names the build to load, so it has to be
+# re-read every time or a new build is never discovered.
+CACHE_REVALIDATE = "no-cache, must-revalidate"
+
+# A hashed asset can be kept forever, because a different
+# build has a different name. Without the hash this would be
+# the wrong answer, which is why the two changed together.
+CACHE_IMMUTABLE = "max-age=31536000, immutable"
+
+# Vite writes assets/app-<hash>.js. Anything under the build's
+# asset directory carries a hash; the entry document does not.
+UI_ASSET_DIRECTORY = "assets/"
+
 # The built interface, committed so the service can serve it
 # without a Node toolchain present.
 UI_ROOT = Path(__file__).resolve().parent.parent / "web" / "dist"
@@ -215,11 +233,17 @@ class Handler(BaseHTTPRequestHandler):
         """Stay silent. A request log is a usage log."""
         return
 
-    def _send(self, status: int, payload: bytes, content_type: str) -> None:
+    def _send(
+        self,
+        status: int,
+        payload: bytes,
+        content_type: str,
+        cache_control: str = CACHE_NEVER,
+    ) -> None:
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(payload)))
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", cache_control)
         self.end_headers()
         self.wfile.write(payload)
 
@@ -317,7 +341,13 @@ class Handler(BaseHTTPRequestHandler):
                 },
             )
             return
-        self._send(200, target.read_bytes(), UI_CONTENT_TYPES[target.suffix])
+        hashed = relative.lstrip("/").startswith(UI_ASSET_DIRECTORY)
+        self._send(
+            200,
+            target.read_bytes(),
+            UI_CONTENT_TYPES[target.suffix],
+            CACHE_IMMUTABLE if hashed else CACHE_REVALIDATE,
+        )
 
     def _screenshot(self, name: str) -> None:
         """Serve the latest portal capture, when one exists.
