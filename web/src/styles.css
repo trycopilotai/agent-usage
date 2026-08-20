@@ -1,7 +1,12 @@
-/* One dark surface. The palette carries meaning: a bar is
-   coloured by how close the limit is, and anything the tool
-   did not measure is muted rather than coloured, so an
-   unmeasured value never looks like a measured one. */
+/* The palette carries meaning: a bar is coloured by how close
+   the limit is, and anything the tool did not measure is muted
+   rather than coloured, so an unmeasured value never looks like
+   a measured one.
+
+   Dark is the default surface. The light variant below is a
+   swap of the same roles, not a second design: the status
+   colours keep their meaning and only darken enough to stay
+   legible on a pale background. */
 
 :root {
   --bg: #0d1117;
@@ -14,7 +19,21 @@
   --critical: #f85149;
   --accent: #58a6ff;
   --radius: 10px;
-  color-scheme: dark;
+  color-scheme: dark light;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #ffffff;
+    --panel: #f6f8fa;
+    --line: #d0d7de;
+    --text: #1f2328;
+    --muted: #59636e;
+    --ok: #1a7f37;
+    --warn: #9a6700;
+    --critical: #cf222e;
+    --accent: #0969da;
+  }
 }
 
 * {
@@ -38,6 +57,21 @@ code {
   max-width: 1180px;
   margin: 0 auto;
   padding: 32px 24px 64px;
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: 20px 14px 48px;
+  }
+}
+
+/* A table of windows is the one thing here that cannot reflow,
+   so it scrolls inside its own box rather than widening the
+   page. */
+.windows {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 .page__header h1 {
@@ -100,7 +134,10 @@ h2 {
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  /* min() rather than a bare 340px: on a viewport narrower than
+     the track, a fixed minimum makes the grid wider than the
+     screen and the whole page scrolls sideways. */
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
   gap: 16px;
 }
 
