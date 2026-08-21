@@ -109,7 +109,13 @@ changed shape, not as a matter of course.
 ## What it does not do
 
 It does not send prompts, proxy a provider, buy credits, or
-change anything on your account. Every route is a read.
+change anything on your account. Every route that touches a
+provider is a read.
+
+One route writes, and only to this tool's own store: `POST
+/api/v1/ingest` accepts a reading a browser took. It is closed
+until you mint a token, and it is described under "Handing in a
+reading from your own browser".
 
 It never stores or serves page HTML, cookies, headers, DOM
 snapshots, prompt text, or transcripts. An allowlist decides
@@ -121,8 +127,53 @@ explicit `login` step. It never opens or copies the browser
 profile you use, because a usage reader that copies a live
 profile is holding every cookie you own.
 
-The HTTP surface has no authentication and refuses to bind
-anything but loopback.
+The read routes have no authentication and the server refuses
+to bind anything but loopback. The one write route requires a
+bearer token and answers a browser only from an origin you
+named.
+
+## Handing in a reading from your own browser
+
+Some providers keep subscription usage behind a session an API
+token cannot hold. Grok is the example: its rate-limit endpoint
+answers an API token with "Action cannot be performed by OAuth2
+token users", and the automated browser this tool would
+otherwise drive is refused by bot protection at the sign in
+domain. The measurement is real and reachable, but only from a
+browser you are already signed in to.
+
+So you can hand it in. Open the route, mint a secret, and build
+a bookmarklet that carries it:
+
+```sh
+python3 -m agent_usage.cli ingest-token
+export AGENT_USAGE_INGEST_ORIGINS=https://grok.com
+python3 scripts/make_bookmarklet.py \
+    --endpoint https://your-host/api/v1/ingest
+```
+
+Save the printed line as a bookmark. On grok.com, signed in,
+click it: the page reads its own `/rest/rate-limits` — same
+origin, so your session cookie applies and CORS never enters
+into it — and posts the result here.
+
+What arrives is not trusted the way a fetch is:
+
+- the reading is stored as `browser_ingest`, never `api`, so a
+  reader can see it arrived rather than being collected
+- the time is this machine's clock, so a caller cannot backdate
+  a reading into a gap or postdate one to outrank a real fetch
+- windows must satisfy the same contract every adapter
+  satisfies, and an unanswered reading must carry a code from
+  the closed set rather than a sentence
+- signed out, the bookmarklet reports
+  `browser_session_missing` rather than handing in the
+  anonymous allowance as though it were the account's
+
+The route stays closed until the token file exists, so a
+deployment that never wanted it does not have to turn it off.
+Rotate with `ingest-token --rotate`, which revokes the old
+secret.
 
 ## The interface
 

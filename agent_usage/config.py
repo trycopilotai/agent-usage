@@ -56,6 +56,17 @@ def cooldown_path(**kwargs) -> Path:
     return state_dir(**kwargs) / "browser" / "cooldown.json"
 
 
+def ingest_token_path(**kwargs) -> Path:
+    """The shared secret a browser presents to hand in a reading.
+
+    Absent by default, and its absence is what keeps the
+    ingest route closed. Creating this file is the whole act
+    of enabling it, so a deployment that never wanted the
+    route does not have to remember to turn it off.
+    """
+    return state_dir(**kwargs) / "ingest-token"
+
+
 def ensure_private(path: Path) -> Path:
     """Create a directory only this user can read."""
     path.mkdir(parents=True, exist_ok=True, mode=0o700)

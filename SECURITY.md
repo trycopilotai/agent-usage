@@ -29,6 +29,37 @@ HTML, cookies, headers, DOM snapshots, prompt text, and
 transcripts are outside it, so a provider that begins
 returning a new field cannot leak it by default.
 
+## The one route that writes
+
+`POST /api/v1/ingest` accepts a usage reading taken by a
+browser you are signed in to, for a provider whose allowance an
+API token cannot reach. It is the only route that writes, and
+the only one with authentication.
+
+It is closed until `ingest-token` creates the secret, which is
+written at mode 600 the way every other file here is. The
+secret is compared in constant time. Rotating it revokes the
+previous one.
+
+A reading that arrives is not a reading that was fetched, and
+it is not stored as though it were. Its source is forced to
+`browser_ingest`, its timestamp comes from this machine's
+clock rather than the caller's, and its windows must satisfy
+the same contract every adapter satisfies. An unanswered
+reading must carry a code from the closed set. The body is
+capped before it is parsed.
+
+Cross origin requests are answered only for an origin named in
+`AGENT_USAGE_INGEST_ORIGINS`, which is empty by default. There
+is no wildcard: a wildcard would let any page you visit post a
+reading, which is what the token exists to prevent.
+
+The secret is a capability to write usage numbers into your own
+store, and nothing else. It reaches no provider and carries no
+account identifier. It does end up inside a bookmarklet, which
+is a URL in your bookmarks, so treat it as you would any local
+secret and rotate it if you share the bookmark.
+
 ## The browser tier
 
 The browser collectors run as a separate short lived process
