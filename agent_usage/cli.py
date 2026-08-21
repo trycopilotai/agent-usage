@@ -21,7 +21,7 @@ import sys
 import time
 from typing import Any
 
-from . import api, config, contract, derive, report, store
+from . import api, config, contract, derive, ingest, report, store
 from .browser import collector as browser_collector
 from .browser import extract as browser_extract
 from .providers import credentials, registry
@@ -190,6 +190,45 @@ def _browser_available() -> bool:
     return True
 
 
+def command_ingest_token(arguments: argparse.Namespace) -> int:
+    """Mint the secret a browser presents to hand in a reading.
+
+    Prints the token, because a secret nobody can read is not
+    usable and this one has to be pasted into a bookmarklet.
+    It is the only command here that prints one, and it prints
+    a secret this tool minted rather than a provider
+    credential it found.
+
+    Running it again replaces the token, which is how it is
+    revoked: the bookmarklet holding the old one stops being
+    accepted.
+    """
+    kwargs = _state_kwargs(arguments)
+    existing = ingest.read_token(**kwargs)
+    if existing and not arguments.rotate:
+        _emit(
+            arguments,
+            {
+                "schema": "trycopilotai/agent-usage/ingest-token/v1",
+                "status": "already_configured",
+                "path": ingest.token_file_note(**kwargs),
+                "hint": "pass --rotate to replace it and revoke the old one",
+            },
+        )
+        return EXIT_OK
+    token = ingest.create_token(**kwargs)
+    _emit(
+        arguments,
+        {
+            "schema": "trycopilotai/agent-usage/ingest-token/v1",
+            "status": "rotated" if existing else "created",
+            "path": ingest.token_file_note(**kwargs),
+            "token": token,
+        },
+    )
+    return EXIT_OK
+
+
 def command_serve(arguments: argparse.Namespace) -> int:
     """Serve the read only surface on loopback."""
     kwargs = _state_kwargs(arguments)
@@ -262,6 +301,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     doctor = commands.add_parser("doctor", help="report local credentials and browser")
     doctor.set_defaults(handler=command_doctor)
+
+    ingest_token = commands.add_parser(
+        "ingest-token", help="mint the secret a browser presents to hand in a reading"
+    )
+    ingest_token.add_argument(
+        "--rotate",
+        action="store_true",
+        help="replace an existing token, revoking the old one",
+    )
+    ingest_token.set_defaults(handler=command_ingest_token)
 
     serve = commands.add_parser("serve", help="serve the read only API on loopback")
     serve.add_argument("--host", default="127.0.0.1")

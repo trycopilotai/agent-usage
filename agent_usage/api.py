@@ -27,13 +27,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from . import config, contract, derive, redaction, report, store
+from . import config, contract, derive, ingest, redaction, report, store
 from .providers import registry
 
 SCHEMA = "trycopilotai/agent-usage/api/v1"
 DEFAULT_PORT = 8787
 SCREENSHOT_PREFIX = "/api/v1/screenshots/"
 UI_PREFIX = "/ui/"
+INGEST_PATH = "/api/v1/ingest"
 
 # A usage reading is never cacheable: it is a measurement of
 # right now, and a stale one is the thing this whole package
@@ -250,6 +251,113 @@ class Handler(BaseHTTPRequestHandler):
     def _json(self, status: int, document: dict[str, Any]) -> None:
         body = (json.dumps(document, sort_keys=True, indent=2) + "\n").encode("utf-8")
         self._send(status, body, "application/json")
+
+    # -- accepting a reading a browser took ---------------------
+    #
+    # The only route here that writes. Everything it needs to be
+    # careful about lives in ingest.py; this end does the HTTP
+    # part and nothing else.
+
+    def _origin_allowed(self) -> str | None:
+        origin = self.headers.get("Origin")
+        if origin and origin in ingest.allowed_origins(self.state_kwargs.get("environ")):
+            return origin
+        return None
+
+    def _cors(self, origin: str | None) -> None:
+        """Answer only for an origin the operator named.
+
+        A wildcard here would let any page the operator visits
+        post a reading, which is the whole thing the token is
+        there to prevent.
+        """
+        if origin is None:
+            return
+        self.send_header("Access-Control-Allow-Origin", origin)
+        self.send_header("Vary", "Origin")
+        self.send_header("Access-Control-Allow-Headers", "authorization, content-type")
+        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
+
+    def do_OPTIONS(self) -> None:  # noqa: N802
+        path = self.path.split("?", 1)[0]
+        if path != INGEST_PATH:
+            self.send_response(404)
+            self.end_headers()
+            return
+        origin = self._origin_allowed()
+        self.send_response(204 if origin else 403)
+        self._cors(origin)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def _refuse(self, status: int, reason: str, origin: str | None) -> None:
+        body = (json.dumps({"error": reason}, sort_keys=True) + "\n").encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", CACHE_NEVER)
+        self._cors(origin)
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_POST(self) -> None:  # noqa: N802
+        path = self.path.split("?", 1)[0]
+        origin = self._origin_allowed()
+        if path != INGEST_PATH:
+            self._refuse(404, "not_found", origin)
+            return
+
+        # Absent token file means the route was never opened.
+        # Closed by default, and it says so as unavailable
+        # rather than unauthorised: there is no credential that
+        # would work.
+        token = ingest.read_token(**self.state_kwargs)
+        if token is None:
+            self._refuse(503, "ingest_not_configured", origin)
+            return
+        if not ingest.authorised(self.headers.get("Authorization"), token):
+            self._refuse(401, "unauthorised", origin)
+            return
+
+        try:
+            declared = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            self._refuse(400, "malformed_length", origin)
+            return
+        if declared <= 0 or declared > ingest.MAX_BODY_BYTES:
+            self._refuse(413, "body_too_large", origin)
+            return
+
+        raw = self.rfile.read(declared)
+        try:
+            posted = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            self._refuse(400, "malformed_json", origin)
+            return
+
+        try:
+            reading = ingest.observation(posted)
+        except ingest.Refused as refusal:
+            self._refuse(refusal.status, refusal.reason, origin)
+            return
+
+        connection = self.connection_factory()
+        try:
+            if ingest.too_soon(connection, reading.provider, time.time(), store):
+                self._refuse(429, "too_soon", origin)
+                return
+            store.record(connection, reading)
+        finally:
+            connection.close()
+
+        body = ingest.body_of(reading)
+        self.send_response(202)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", CACHE_NEVER)
+        self._cors(origin)
+        self.end_headers()
+        self.wfile.write(body)
 
     def do_GET(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]

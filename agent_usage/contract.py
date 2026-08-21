@@ -37,11 +37,20 @@ SCHEMA = "trycopilotai/agent-usage/observation/v1"
 SOURCE_API = "api"
 SOURCE_BROWSER_JSON = "browser_json"
 SOURCE_BROWSER_TEXT = "browser_text"
+# Handed to this tool by a browser the operator is signed in
+# to, rather than fetched by it. Every other source is
+# something this process went and got, with a credential it
+# holds and against an endpoint it chose. This one is a number
+# someone else computed, so it is named apart: a reader
+# weighing how much to trust a reading should be able to see
+# that it arrived rather than being collected.
+SOURCE_BROWSER_INGEST = "browser_ingest"
 
 SOURCES = (
     SOURCE_API,
     SOURCE_BROWSER_JSON,
     SOURCE_BROWSER_TEXT,
+    SOURCE_BROWSER_INGEST,
 )
 
 # What a window limits. An account scope pool governs the work
