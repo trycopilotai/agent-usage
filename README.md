@@ -142,20 +142,41 @@ otherwise drive is refused by bot protection at the sign in
 domain. The measurement is real and reachable, but only from a
 browser you are already signed in to.
 
-So you can hand it in. Open the route, mint a secret, and build
-a bookmarklet that carries it:
+So you can hand it in, with a bookmarklet — a bookmark whose
+URL is JavaScript, so clicking it runs that code on the page
+you are looking at.
+
+```sh
+python3 scripts/make_bookmarklet.py --dashboard https://your-dashboard
+```
+
+Save the printed line as a bookmark. Both Safari and Chrome
+strip a `javascript:` URL typed into the address bar, so it has
+to be saved rather than pasted.
+
+On grok.com, signed in, click it. The script reads
+`/rest/rate-limits` — same origin, so your session cookie
+applies and CORS never enters into it — and sends you to the
+dashboard with the reading in the **URL fragment**. A fragment
+is never transmitted to a server, so nothing crosses an origin
+and the bookmarklet holds no secret. The dashboard, behind
+whatever sign in it already has, posts the reading onward with
+your session and clears the fragment.
+
+The reading is only as fresh as your last click. There is no
+polling: a provider that hides usage behind an interactive
+session cannot be read on a timer.
+
+### Serving the route directly
+
+A deployment that exposes `/api/v1/ingest` without a sign in
+front of it needs its own authentication, so the route stays
+closed until you mint a token:
 
 ```sh
 python3 -m agent_usage.cli ingest-token
 export AGENT_USAGE_INGEST_ORIGINS=https://grok.com
-python3 scripts/make_bookmarklet.py \
-    --endpoint https://your-host/api/v1/ingest
 ```
-
-Save the printed line as a bookmark. On grok.com, signed in,
-click it: the page reads its own `/rest/rate-limits` — same
-origin, so your session cookie applies and CORS never enters
-into it — and posts the result here.
 
 What arrives is not trusted the way a fetch is:
 

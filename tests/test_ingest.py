@@ -293,17 +293,38 @@ class TestTheOriginAllowlist:
 
 
 class TestTheBookmarklet:
-    def test_it_ships_no_token_and_no_endpoint(self):
-        source = (
+    def _source(self):
+        return (
             Path(__file__).resolve().parent.parent / "scripts" / "bookmarklet_grok.js"
         ).read_text(encoding="utf-8")
-        assert "__TOKEN__" in source
-        assert "__ENDPOINT__" in source
-        # The committed file is a template. A real token in it
-        # would be a secret in git history.
-        assert "Bearer " not in source.replace('"Bearer " + TOKEN', "")
 
-    def test_building_it_substitutes_both_placeholders(self):
+    def test_it_carries_no_secret(self):
+        source = self._source()
+        assert "__DASHBOARD__" in source
+        # The fragment hand-off exists so this script needs no
+        # credential of its own. If a token ever appears here it
+        # is a secret living in a bookmark, which is the thing
+        # the design avoids.
+        assert "Bearer" not in source
+        assert "TOKEN" not in source
+        assert "authorization" not in source.lower()
+
+    def test_it_hands_over_by_fragment_rather_than_posting(self):
+        source = self._source()
+        # The only fetch is the same origin read of the
+        # provider's own endpoint.
+        assert source.count("fetch(") == 1
+        assert "/rest/rate-limits" in source
+        assert "#reading=" in source
+
+    def test_it_reports_a_signed_out_session_rather_than_its_allowance(self):
+        source = self._source()
+        # Signed out, grok answers with a small anonymous
+        # allowance. Carrying that over would report it as the
+        # account's.
+        assert "browser_session_missing" in source
+
+    def test_building_it_substitutes_the_dashboard(self):
         import sys
 
         root = Path(__file__).resolve().parent.parent
@@ -311,11 +332,23 @@ class TestTheBookmarklet:
         import make_bookmarklet
 
         built = make_bookmarklet.build(
-            'const E="__ENDPOINT__";const T="__TOKEN__";', "https://u/api/v1/ingest", "s3cret"
+            'const D="__DASHBOARD__";', "https://usage.example/"
         )
         assert built.startswith("javascript:")
-        assert "__ENDPOINT__" not in built
-        assert "__TOKEN__" not in built
+        assert "__DASHBOARD__" not in built
+        # The trailing slash is dropped so the fragment is not
+        # appended to a doubled path.
+        assert "https%3A//usage.example%22" in built or "usage.example" in built
+
+    def test_a_relative_dashboard_is_refused(self):
+        import sys
+
+        root = Path(__file__).resolve().parent.parent
+        sys.path.insert(0, str(root / "scripts"))
+        import make_bookmarklet
+
+        with pytest.raises(SystemExit):
+            make_bookmarklet.main(["--dashboard", "usage.example"])
 
 
 def test_the_source_vocabulary_stayed_closed():

@@ -2,6 +2,7 @@ import { Headroom } from './components/Headroom';
 import { Health } from './components/Health';
 import { HistoryChart } from './components/HistoryChart';
 import { ProviderCard } from './components/ProviderCard';
+import { handoffMessage, useHandoff } from './hooks/useHandoff';
 import { useUsage } from './hooks/useUsage';
 
 function ago(seconds: number): string {
@@ -32,6 +33,11 @@ function errorAdvice(kind: string): string {
 export function App() {
   const { snapshot, forecasts, histories, error, incomplete, loading, refresh } =
     useUsage();
+  // A reading a bookmarklet carried here in the fragment. It
+  // refreshes on success so the card it belongs to updates
+  // without the reader wondering whether it took.
+  const handoff = useHandoff(refresh);
+  const handoffNote = handoffMessage(handoff);
 
   return (
     <main className="page">
@@ -50,6 +56,15 @@ export function App() {
           Refresh
         </button>
       </header>
+
+      {handoffNote ? (
+        <p
+          className={handoff.status === 'refused' ? 'error' : 'handoff'}
+          role="status"
+        >
+          {handoffNote}
+        </p>
+      ) : null}
 
       {error ? (
         <p className="error" role="alert">

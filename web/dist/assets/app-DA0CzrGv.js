@@ -12932,6 +12932,66 @@ function useUsage() {
   }, [tick]);
   return { snapshot, forecasts, histories, error, incomplete, loading, refresh };
 }
+const FRAGMENT_KEY = "reading=";
+function readingFromFragment(hash) {
+  const raw = hash.startsWith("#") ? hash.slice(1) : hash;
+  if (!raw.startsWith(FRAGMENT_KEY)) return null;
+  const encoded = raw.slice(FRAGMENT_KEY.length);
+  if (!encoded) return null;
+  try {
+    return JSON.parse(decodeURIComponent(encoded));
+  } catch {
+    return null;
+  }
+}
+function useHandoff(onStored) {
+  const [state, setState] = reactExports.useState({ status: "none" });
+  reactExports.useEffect(() => {
+    const reading = readingFromFragment(window.location.hash);
+    if (reading === null) return;
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+    setState({ status: "sending" });
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch(`${apiBase()}/ingest`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(reading)
+        });
+        if (cancelled) return;
+        if (response.ok) {
+          const body2 = await response.json().catch(() => ({}));
+          setState({
+            status: "stored",
+            provider: String(body2.stored ?? "the provider")
+          });
+          onStored();
+          return;
+        }
+        const body = await response.json().catch(() => ({}));
+        setState({
+          status: "refused",
+          reason: String(body.error ?? body.message ?? response.status)
+        });
+      } catch {
+        if (!cancelled) {
+          setState({ status: "refused", reason: "the service could not be reached" });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return state;
+}
+function handoffMessage(state) {
+  if (state.status === "sending") return "Handing over the reading from your browser…";
+  if (state.status === "stored") return `Stored the reading for ${state.provider}.`;
+  if (state.status === "refused") return `That reading was refused: ${state.reason}.`;
+  return null;
+}
 function ago(seconds) {
   const delta = Math.max(0, Math.floor(Date.now() / 1e3 - seconds));
   if (delta < 60) return `${delta}s ago`;
@@ -12953,6 +13013,8 @@ function errorAdvice(kind) {
 }
 function App() {
   const { snapshot, forecasts, histories, error, incomplete, loading, refresh } = useUsage();
+  const handoff = useHandoff(refresh);
+  const handoffNote = handoffMessage(handoff);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "page", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "page__header", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "agent-usage" }),
@@ -12968,6 +13030,14 @@ function App() {
         }
       )
     ] }),
+    handoffNote ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "p",
+      {
+        className: handoff.status === "refused" ? "error" : "handoff",
+        role: "status",
+        children: handoffNote
+      }
+    ) : null,
     error ? /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "error", role: "alert", children: [
       errorAdvice(error.kind),
       " ",
