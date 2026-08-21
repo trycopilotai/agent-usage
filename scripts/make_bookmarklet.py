@@ -1,30 +1,28 @@
 #!/usr/bin/env python3
 """Build the javascript: URL a browser can hold as a bookmark.
 
-The token is injected here rather than committed, so the file
-in the repository stays a template and the secret only ever
-exists on the machine that minted it.
-
-    python3 scripts/make_bookmarklet.py --endpoint https://usage.example/api/v1/ingest
+    python3 scripts/make_bookmarklet.py --dashboard https://usage.example
 
 Prints one line. Make a new bookmark and paste it as the URL.
+Both Safari and Chrome strip a javascript: URL typed into the
+address bar, so it has to be saved as a bookmark to run.
+
+Nothing secret is injected. The reading travels in a URL
+fragment to a dashboard that is behind its own sign in, so the
+bookmarklet needs no token and can be shared freely.
 """
 
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-
-from agent_usage import ingest  # noqa: E402
 
 
-def build(source: str, endpoint: str, token: str) -> str:
-    body = source.replace("__ENDPOINT__", endpoint).replace("__TOKEN__", token)
+def build(source: str, dashboard: str) -> str:
+    body = source.replace("__DASHBOARD__", dashboard.rstrip("/"))
     # A bookmarklet is a URL, so everything a URL treats as
     # structure has to be escaped. quote with an empty safe
     # list is blunt and correct; the result is unreadable
@@ -35,9 +33,9 @@ def build(source: str, endpoint: str, token: str) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--endpoint",
+        "--dashboard",
         required=True,
-        help="the full ingest URL, ending in /api/v1/ingest",
+        help="where the dashboard is served, e.g. https://usage.example",
     )
     parser.add_argument(
         "--provider",
@@ -47,17 +45,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     arguments = parser.parse_args(argv)
 
-    token = ingest.read_token()
-    if token is None:
-        parser.error(
-            "no ingest token yet; run: agent-usage ingest-token\n"
-            "expected at " + ingest.token_file_note()
-        )
+    if not arguments.dashboard.startswith(("http://", "https://")):
+        parser.error("--dashboard must be an absolute URL")
 
     source = (ROOT / "scripts" / ("bookmarklet_%s.js" % arguments.provider)).read_text(
         encoding="utf-8"
     )
-    print(build(source, arguments.endpoint, token))
+    print(build(source, arguments.dashboard))
     return 0
 
 

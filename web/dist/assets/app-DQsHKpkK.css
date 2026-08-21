@@ -112,6 +112,17 @@ code {
   padding: 12px 14px;
 }
 
+/* A reading handed over from the reader's own browser. It
+   reports something that just went right, so it takes the
+   ordinary surface rather than a colour that asks for
+   attention the way an error does. */
+.handoff {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
 /* A partial read is not an outage. It gets the warning colour
    rather than the critical one, because the usage figures on
    the page are still current when it appears. */
