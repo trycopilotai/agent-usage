@@ -1,7 +1,7 @@
 {
   "agent": "Claude Code",
   "agent_version": "Opus 5",
-  "input_commit": "0943eafb35ab67059c24779ddc4ec0e776575d7a",
+  "input_commit": "f79079cfed845dc3e22fbad9bb6bf5ad6bb370ca",
   "invocation": "sh scripts/demo.sh",
   "invocation_date": "2026-08-20",
   "output_path": "evidence/transcripts/demo-session.txt",
@@ -12,11 +12,11 @@
   "readings_note": "Every number in the transcript is invented. No provider account was contacted and no real quota appears.",
   "schema_version": 1,
   "source_sha256": {
-    "agent_usage/cli.py": "147f749e0837757b043e4949b122e7277a968f81c2b666382235e11952577cd4",
+    "agent_usage/cli.py": "e5a6f697e4b078ba6ff82e6b38a8fe8c5bda07f47f69f166c579d3db531f3d3a",
     "agent_usage/contract.py": "a66b17b48a27bd90ea808489fd9a59087579e81187f1e4df2c5944c6f1e8122c",
     "agent_usage/derive.py": "9c68879bfe78d287f8b8dba7293d84d2cb1e4f7d89dd2708756c41deb7de7104",
     "agent_usage/report.py": "8880679c43d7185b554a468adbc21ae69abbab6069d0b617abef8ca635b67ec0",
-    "agent_usage/store.py": "0b8703812761a5bf5db609a1f8a7af9b58aed2b07e43491849190c4bfc17a967",
+    "agent_usage/store.py": "4c0d4fdcd58ef07287c1bbdc16dd301b78df5cbb102e379a9ed820ae917d8f61",
     "scripts/demo.sh": "67e7a8e855fc4b164eee700e7b0a1a6df75391e0022f0aed80222085fb8cff3d",
     "scripts/seed_demo.py": "931c36b1763ddb4ff592624e9316eb9a7799f8ceacb0bf2a8c9a58610882bca0"
   },

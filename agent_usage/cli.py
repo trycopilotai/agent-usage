@@ -118,11 +118,27 @@ def _stored_failure(name: str, document: dict[str, Any] | None) -> contract.Obse
 
 
 def _rehydrate(name: str, document: dict[str, Any]) -> contract.Observation:
+    """Rebuild a stored reading without quietly losing half of it.
+
+    Every field a reader could act on has to survive the round
+    trip, because the defaults are not neutral. A window
+    rebuilt without its scope becomes account scope, and
+    account scope is what decides which limit governs -- so
+    dropping it puts an exhausted per-feature pool back in
+    charge of the provider it does not govern. A reading
+    rebuilt without its source claims it was fetched from the
+    API when a browser handed it in, and one rebuilt without
+    its freshness claims to be live when it has aged out.
+    Missing is never zero, and unknown is never live.
+    """
     windows = tuple(
         contract.Window(
             label=entry.get("label", ""),
             used_percent=float(entry.get("used_percent", 0.0)),
             resets_in_seconds=entry.get("resets_in_seconds"),
+            remaining=entry.get("remaining"),
+            limit=entry.get("limit"),
+            scope=_stored_scope(entry),
         )
         for entry in document.get("windows", [])
         if isinstance(entry, dict) and entry.get("label")
@@ -139,7 +155,35 @@ def _rehydrate(name: str, document: dict[str, Any]) -> contract.Observation:
         windows=windows,
         credits=restored,
         plan=plan if isinstance(plan, str) else "",
+        source=_stored_choice(document, "source", contract.SOURCES, contract.SOURCE_API),
+        freshness=_stored_choice(
+            document, "freshness", contract.FRESHNESS_STATES, contract.FRESHNESS_LIVE
+        ),
     )
+
+
+def _stored_choice(
+    document: dict[str, Any], field: str, allowed: tuple[str, ...], fallback: str
+) -> str:
+    """Return a stored value only when it is one this contract knows.
+
+    A stored row can predate a vocabulary, and a value from
+    outside the closed set would fail validation on the way
+    back out. Falling back keeps an old row readable rather
+    than making the whole report unprintable.
+    """
+    value = document.get(field)
+    return value if isinstance(value, str) and value in allowed else fallback
+
+
+def _stored_scope(entry: dict[str, Any]) -> str:
+    """Return a window's stored scope, defaulting to account.
+
+    Account is the right default for a row written before
+    scope existed: every adapter emitted account-wide windows
+    then, so reading one as account-wide is what it meant.
+    """
+    return _stored_choice(entry, "scope", contract.SCOPES, contract.SCOPE_ACCOUNT)
 
 
 def command_forecast(arguments: argparse.Namespace) -> int:
