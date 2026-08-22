@@ -60,19 +60,81 @@ class TestWhichReadingIsCurrent:
         finally:
             connection.close()
 
-    def test_the_non_answer_stands_once_the_measurement_ages_out(self):
+    def test_the_measurement_outlives_the_live_window(self):
         kwargs = _kwargs()
         connection = store.connect(**kwargs)
         try:
             store.record(connection, _answered(1000.0))
             store.record(connection, _unanswered(1060.0))
 
-            # Past the live window the measurement is no longer
-            # something this tool would vouch for, so hiding a
-            # current failure behind it would be the worse lie.
-            document = store.latest(connection, "grok", now=2000.0)
+            # Twenty minutes on. The reading is no longer live,
+            # but this tool would still show it and call it
+            # cached, and a reading it would still show beats a
+            # route that cannot see the subscription at all.
+            document = store.latest(connection, "grok", now=1000.0 + 20 * 60)
+            assert document is not None
+            assert document["answered"]
+        finally:
+            connection.close()
+
+    def test_a_measurement_this_tool_would_call_stale_stops_winning(self):
+        kwargs = _kwargs()
+        connection = store.connect(**kwargs)
+        try:
+            store.record(connection, _answered(1000.0))
+            store.record(connection, _unanswered(1060.0))
+
+            # Past the cached window the measurement is no
+            # longer something this tool vouches for at all, so
+            # hiding a current failure behind it would be the
+            # worse lie.
+            moment = 1000.0 + store.CACHED_SECONDS + 1.0
+            document = store.latest(connection, "grok", now=moment)
             assert document is not None
             assert not document["answered"]
+        finally:
+            connection.close()
+
+    def test_precedence_ends_exactly_where_this_tool_stops_vouching(self):
+        # Stated against freshness_of rather than against the
+        # number, so the two cannot drift apart: everything the
+        # precedence rule lets through is something this tool
+        # would still put a freshness label on other than stale.
+        kwargs = _kwargs()
+        connection = store.connect(**kwargs)
+        try:
+            store.record(connection, _answered(1000.0))
+            store.record(connection, _unanswered(1060.0))
+
+            for offset in (0.0, 60.0, 20 * 60.0, store.CACHED_SECONDS):
+                moment = 1000.0 + offset
+                document = store.latest(connection, "grok", now=moment)
+                assert document is not None
+                assert document["answered"], offset
+                assert (
+                    store.freshness_of(document, now=moment)
+                    != contract.FRESHNESS_STALE
+                ), offset
+        finally:
+            connection.close()
+
+    def test_a_remembered_reading_is_not_served_as_live(self):
+        # The reading wins on precedence long after it stopped
+        # being live. Whoever serves it must say so, or this
+        # change would have bought grok a number at the cost of
+        # the rule that stale never appears live.
+        kwargs = _kwargs()
+        connection = store.connect(**kwargs)
+        try:
+            store.record(connection, _answered(1000.0))
+            store.record(connection, _unanswered(1060.0))
+
+            moment = 1000.0 + 20 * 60
+            document = store.latest(connection, "grok", now=moment)
+            assert document is not None
+            assert store.freshness_of(document, now=moment) == (
+                contract.FRESHNESS_CACHED
+            )
         finally:
             connection.close()
 

@@ -104,13 +104,35 @@ def samples(
     return [(float(row["collected_at"]), float(row["binding_percent"])) for row in rows]
 
 
-# How long an answered reading keeps precedence over a
-# later non-answer. Past this the failure is the news, and
-# hiding it behind a measurement nobody can still vouch for
-# would be the worse lie. It matches the live window used to
-# label freshness, so a reading that outranks a non-answer is
-# always one this tool would still call live.
-ANSWERED_PRECEDENCE_SECONDS = 300.0
+# The two ages that separate a reading this tool will still
+# call current from one it will not. They were the defaults of
+# freshness_of and nothing else could refer to them; naming
+# them lets the precedence rule below be stated in the same
+# terms a reader already has to understand.
+LIVE_SECONDS = 300.0
+CACHED_SECONDS = 3600.0
+
+# How long an answered reading keeps precedence over a later
+# non-answer.
+#
+# The live window is the wrong bound. Grok's subscription
+# usage arrives by hand, from an operator's own browser, and
+# describes a two hour window; the API route that cannot see
+# that subscription answers every sixty seconds. Cutting the
+# reading off after five minutes meant the handed-in
+# measurement was the visible one for five minutes and a false
+# "no allowance" for every hour after.
+#
+# The cached bound is the right one, and for a reason rather
+# than because it is larger: it is exactly the age past which
+# this tool stops vouching for a reading at all. Up to it the
+# reading is still something we would show and label cached;
+# past it we would call it stale, and a stale measurement is
+# no longer worth more than a current failure. Callers that
+# serve a reading recompute freshness from its age, so one
+# that wins on precedence is never labelled live after it has
+# aged out of live -- it is shown as the cached thing it is.
+ANSWERED_PRECEDENCE_SECONDS = CACHED_SECONDS
 
 
 def latest(
@@ -129,10 +151,10 @@ def latest(
     was never the one anybody saw.
 
     A reading that did not answer therefore does not displace
-    one that did while that one is still live. It is not
-    discarded: once the answered reading ages past the live
-    window the non-answer stands, because by then it is the
-    only current thing known.
+    one that did while that one is still worth showing. It is
+    not discarded: once the answered reading ages past the
+    cached window the non-answer stands, because by then it is
+    the only current thing known.
     """
     rows = connection.execute(
         "SELECT document, answered, collected_at FROM observations "
@@ -169,8 +191,8 @@ def _document_of(row: Any) -> dict[str, Any] | None:
 def freshness_of(
     document: dict[str, Any],
     now: float | None = None,
-    live_seconds: float = 300.0,
-    cached_seconds: float = 3600.0,
+    live_seconds: float = LIVE_SECONDS,
+    cached_seconds: float = CACHED_SECONDS,
 ) -> str:
     """Classify a stored read by age.
 
