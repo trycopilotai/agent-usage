@@ -104,14 +104,62 @@ def samples(
     return [(float(row["collected_at"]), float(row["binding_percent"])) for row in rows]
 
 
-def latest(connection: sqlite3.Connection, provider: str) -> dict[str, Any] | None:
-    row = connection.execute(
-        "SELECT document FROM observations WHERE provider = ? "
-        "ORDER BY collected_at DESC LIMIT 1",
+# How long an answered reading keeps precedence over a
+# later non-answer. Past this the failure is the news, and
+# hiding it behind a measurement nobody can still vouch for
+# would be the worse lie. It matches the live window used to
+# label freshness, so a reading that outranks a non-answer is
+# always one this tool would still call live.
+ANSWERED_PRECEDENCE_SECONDS = 300.0
+
+
+def latest(
+    connection: sqlite3.Connection,
+    provider: str,
+    now: float | None = None,
+) -> dict[str, Any] | None:
+    """Return the current reading, preferring one that answered.
+
+    Newest-wins alone is wrong when a provider is read by more
+    than one route. Grok publishes subscription usage only to a
+    signed in browser, and the API route that also runs against
+    it answers `no_allowance` every sixty seconds -- so a
+    reading a person handed in was replaced by a non-answer
+    within a minute of arriving, and the measurement they took
+    was never the one anybody saw.
+
+    A reading that did not answer therefore does not displace
+    one that did while that one is still live. It is not
+    discarded: once the answered reading ages past the live
+    window the non-answer stands, because by then it is the
+    only current thing known.
+    """
+    rows = connection.execute(
+        "SELECT document, answered, collected_at FROM observations "
+        "WHERE provider = ? ORDER BY collected_at DESC LIMIT 50",
         (provider,),
-    ).fetchone()
-    if row is None:
+    ).fetchall()
+    if not rows:
         return None
+
+    newest = rows[0]
+    if newest["answered"]:
+        return _document_of(newest)
+
+    moment = time.time() if now is None else now
+    for row in rows:
+        if not row["answered"]:
+            continue
+        age = moment - float(row["collected_at"])
+        if 0 <= age <= ANSWERED_PRECEDENCE_SECONDS:
+            return _document_of(row)
+        # Rows are newest first, so the first answered one that
+        # is too old settles it for every answered one behind.
+        break
+    return _document_of(newest)
+
+
+def _document_of(row: Any) -> dict[str, Any] | None:
     try:
         return json.loads(row["document"])
     except ValueError:
