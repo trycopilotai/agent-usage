@@ -317,6 +317,35 @@ class TestTheBookmarklet:
         assert "/rest/rate-limits" in source
         assert "#reading=" in source
 
+    def test_it_asks_by_model_rather_than_by_request_kind(self):
+        source = self._source()
+        # Measured live: {"requestKind": "DEFAULT"} answers 404
+        # "Model not found." The endpoint keys the allowance by
+        # model, so asking any other way reads nothing at all.
+        assert "modelName: model" in source
+        # The property, not the word: the comment above that
+        # line names requestKind on purpose, so a reader can
+        # see what was tried and why it does not work.
+        assert "requestKind:" not in source
+
+    def test_it_reads_every_model_rather_than_one(self):
+        source = self._source()
+        # The allowance is per model and the models differ:
+        # 400, 140 and 20 queries per two hours on one account.
+        # Reading one and calling it "grok" reports a pool that
+        # governs only part of the provider.
+        for model in ("grok-4", "grok-3", "grok-4-heavy"):
+            assert model in source
+
+    def test_its_windows_are_feature_scope(self):
+        source = self._source()
+        # There is no account-wide grok pool to find. Every
+        # window belongs to one model, so none of them governs
+        # the provider, and calling one "account" would make
+        # binding pick a limit that does not bind.
+        assert 'scope: "feature"' in source
+        assert 'scope: "account"' not in source
+
     def test_it_reports_a_signed_out_session_rather_than_its_allowance(self):
         source = self._source()
         # Signed out, grok answers with a small anonymous
