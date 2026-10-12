@@ -109,7 +109,7 @@ def test_no_tracked_path_carries_a_private_provenance_infix():
 def test_the_license_is_mit_and_names_the_organisation():
     text = (ROOT / "LICENSE").read_text(encoding="utf-8")
     assert "MIT License" in text
-    assert "Try Copilot AI" in text
+    assert "trycopilot.ai LLC" in text
 
 
 def test_the_version_is_stated_once_and_agrees_everywhere():
