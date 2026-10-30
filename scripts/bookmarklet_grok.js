@@ -61,11 +61,16 @@
         // allowance by model, and answers a request without
         // one with "Model not found" -- which is what every
         // requestKind got.
-        body: JSON.stringify({ modelName: model }),
+        body: JSON.stringify({ modelName: model })
       });
       body = await response.json();
     } catch (error) {
-      stop("could not read the allowance for " + model + ": " + error);
+      stop(
+        "could not read the allowance for " +
+          model +
+          ": " +
+          error
+      );
       return;
     }
     lastBody = body;
@@ -94,14 +99,21 @@
     reading = {
       provider: "grok",
       answered: false,
-      error: "browser_session_missing",
+      error: "browser_session_missing"
     };
   } else if (windows.length > 0) {
-    reading = { provider: "grok", answered: true, windows: windows };
+    reading = {
+      provider: "grok",
+      answered: true,
+      windows: windows
+    };
   } else {
     // Missing is never zero. No window means no reading, not a
     // provider sitting at nothing used.
-    stop("no allowance parsed: " + JSON.stringify(lastBody).slice(0, 200));
+    stop(
+      "no allowance parsed: " +
+        JSON.stringify(lastBody).slice(0, 200)
+    );
     return;
   }
 
@@ -112,9 +124,18 @@
 
   function measurement(model, payload) {
     const total = Number(payload && payload.totalQueries);
-    const remaining = Number(payload && payload.remainingQueries);
-    const seconds = Number(payload && payload.windowSizeSeconds);
-    if (!isFinite(total) || total <= 0 || !isFinite(remaining)) return null;
+    const remaining = Number(
+      payload && payload.remainingQueries
+    );
+    const seconds = Number(
+      payload && payload.windowSizeSeconds
+    );
+    if (
+      !isFinite(total) ||
+      total <= 0 ||
+      !isFinite(remaining)
+    )
+      return null;
 
     const hours = seconds / 3600;
     const duration =
@@ -135,7 +156,7 @@
       // Feature, not account. There is no account-wide grok
       // pool: every window here belongs to one model, so none
       // of them governs the provider overall.
-      scope: "feature",
+      scope: "feature"
     };
   }
 })();

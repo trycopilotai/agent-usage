@@ -12,7 +12,8 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: Tag or commit to build, for example v0.2.1
+        description:
+          Tag or commit to build, for example v0.2.1
         required: true
 
 permissions:
@@ -20,7 +21,9 @@ permissions:
   packages: write
 
 concurrency:
-  group: publish-image-${{ github.event.inputs.ref || github.ref }}
+  group:
+    publish-image-${{ github.event.inputs.ref || github.ref
+    }}
   cancel-in-progress: false
 
 jobs:
@@ -102,8 +105,8 @@ jobs:
 
       - name: Sign in to the registry
         run: >-
-          echo "${{ secrets.GITHUB_TOKEN }}" |
-          docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login
+          ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Publish
         run: |

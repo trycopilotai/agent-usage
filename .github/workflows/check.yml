@@ -42,7 +42,8 @@ jobs:
         run: make check
 
   interface:
-    name: Interface builds and the committed build is current
+    name:
+      Interface builds and the committed build is current
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
