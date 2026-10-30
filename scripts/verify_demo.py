@@ -53,10 +53,14 @@ def failures() -> list[str]:
             capture_output=True,
         )
         if blob.returncode != 0:
-            problems.append("recorded source is absent at the input commit: " + relative)
+            problems.append(
+                "recorded source is absent at the input commit: " + relative
+            )
             continue
         if hashlib.sha256(blob.stdout).hexdigest() != recorded:
-            problems.append("recorded source does not match the input commit: " + relative)
+            problems.append(
+                "recorded source does not match the input commit: " + relative
+            )
         path = ROOT / relative
         if not path.is_file():
             problems.append("recorded source is missing from the tree: " + relative)

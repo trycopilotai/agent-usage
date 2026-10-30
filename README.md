@@ -2,8 +2,8 @@
 
 Read how much of each AI provider's usage limit is left,
 when it resets, and which provider still has headroom.
-Supports Claude, Codex, Kimi, and Grok from one
-command, one HTTP surface, and one agent skill.
+Supports Claude, Codex, Kimi, and Grok from one command, one
+HTTP surface, and one agent skill.
 
 It answers from measured readings and declines when it
 cannot. A provider that did not respond is reported as not
@@ -80,9 +80,9 @@ One credential is written. Claude's access token lasts eight
 hours, and on a machine where no Claude client runs there is
 nothing else to renew it, so this tool renews it and stores
 the result in the same file the client uses. That provider
-rotates the refresh token on every use, which means a renewal
-that is not stored locks the account out, so storing it is
-part of doing it at all. Nothing else is ever written.
+rotates the refresh token on every use, which means a
+renewal that is not stored locks the account out, so storing
+it is part of doing it at all. Nothing else is ever written.
 
 Three collectors. The first party HTTP API is what `collect`
 uses. `collect --browser` adds a headless browser fallback
@@ -112,10 +112,10 @@ It does not send prompts, proxy a provider, buy credits, or
 change anything on your account. Every route that touches a
 provider is a read.
 
-One route writes, and only to this tool's own store: `POST
-/api/v1/ingest` accepts a reading a browser took. It is closed
-until you mint a token, and it is described under "Handing in a
-reading from your own browser".
+One route writes, and only to this tool's own store:
+`POST /api/v1/ingest` accepts a reading a browser took. It
+is closed until you mint a token, and it is described under
+"Handing in a reading from your own browser".
 
 It never stores or serves page HTML, cookies, headers, DOM
 snapshots, prompt text, or transcripts. An allowlist decides
@@ -127,20 +127,21 @@ explicit `login` step. It never opens or copies the browser
 profile you use, because a usage reader that copies a live
 profile is holding every cookie you own.
 
-The read routes have no authentication and the server refuses
-to bind anything but loopback. The one write route requires a
-bearer token and answers a browser only from an origin you
-named.
+The read routes have no authentication and the server
+refuses to bind anything but loopback. The one write route
+requires a bearer token and answers a browser only from an
+origin you named.
 
 ## Handing in a reading from your own browser
 
-Some providers keep subscription usage behind a session an API
-token cannot hold. Grok is the example: its rate-limit endpoint
-answers an API token with "Action cannot be performed by OAuth2
-token users", and the automated browser this tool would
-otherwise drive is refused by bot protection at the sign in
-domain. The measurement is real and reachable, but only from a
-browser you are already signed in to.
+Some providers keep subscription usage behind a session an
+API token cannot hold. Grok is the example: its rate-limit
+endpoint answers an API token with "Action cannot be
+performed by OAuth2 token users", and the automated browser
+this tool would otherwise drive is refused by bot protection
+at the sign in domain. The measurement is real and
+reachable, but only from a browser you are already signed in
+to.
 
 So you can hand it in, with a bookmarklet — a bookmark whose
 URL is JavaScript, so clicking it runs that code on the page
@@ -151,17 +152,17 @@ python3 scripts/make_bookmarklet.py --dashboard https://your-dashboard
 ```
 
 Save the printed line as a bookmark. Both Safari and Chrome
-strip a `javascript:` URL typed into the address bar, so it has
-to be saved rather than pasted.
+strip a `javascript:` URL typed into the address bar, so it
+has to be saved rather than pasted.
 
 On grok.com, signed in, click it. The script reads
 `/rest/rate-limits` — same origin, so your session cookie
 applies and CORS never enters into it — and sends you to the
-dashboard with the reading in the **URL fragment**. A fragment
-is never transmitted to a server, so nothing crosses an origin
-and the bookmarklet holds no secret. The dashboard, behind
-whatever sign in it already has, posts the reading onward with
-your session and clears the fragment.
+dashboard with the reading in the **URL fragment**. A
+fragment is never transmitted to a server, so nothing
+crosses an origin and the bookmarklet holds no secret. The
+dashboard, behind whatever sign in it already has, posts the
+reading onward with your session and clears the fragment.
 
 The reading is only as fresh as your last click. There is no
 polling: a provider that hides usage behind an interactive
@@ -180,21 +181,22 @@ export AGENT_USAGE_INGEST_ORIGINS=https://grok.com
 
 What arrives is not trusted the way a fetch is:
 
-- the reading is stored as `browser_ingest`, never `api`, so a
-  reader can see it arrived rather than being collected
-- the time is this machine's clock, so a caller cannot backdate
-  a reading into a gap or postdate one to outrank a real fetch
+- the reading is stored as `browser_ingest`, never `api`, so
+  a reader can see it arrived rather than being collected
+- the time is this machine's clock, so a caller cannot
+  backdate a reading into a gap or postdate one to outrank a
+  real fetch
 - windows must satisfy the same contract every adapter
-  satisfies, and an unanswered reading must carry a code from
-  the closed set rather than a sentence
+  satisfies, and an unanswered reading must carry a code
+  from the closed set rather than a sentence
 - signed out, the bookmarklet reports
   `browser_session_missing` rather than handing in the
   anonymous allowance as though it were the account's
 
 The route stays closed until the token file exists, so a
-deployment that never wanted it does not have to turn it off.
-Rotate with `ingest-token --rotate`, which revokes the old
-secret.
+deployment that never wanted it does not have to turn it
+off. Rotate with `ingest-token --rotate`, which revokes the
+old secret.
 
 ## The interface
 
@@ -202,10 +204,11 @@ secret.
 python3 -m agent_usage.cli serve
 ```
 
-Then open <http://127.0.0.1:8787/ui/>. It shows the governing
-limit for every provider, all windows, when each resets,
-credit state, a history line per provider, a forecast or the
-reason there is not one, and a collection health table.
+Then open <http://127.0.0.1:8787/ui/>. It shows the
+governing limit for every provider, all windows, when each
+resets, credit state, a history line per provider, a
+forecast or the reason there is not one, and a collection
+health table.
 
 It carries the same rules the library does. A provider that
 did not answer is drawn as not answering with its error
