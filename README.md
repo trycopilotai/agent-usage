@@ -5,6 +5,11 @@ when it resets, and which provider still has headroom.
 Supports Claude, Codex, Kimi, and Grok from one command, one
 HTTP surface, and one agent skill.
 
+[![auto-lint-pr](https://github.com/trycopilotai/agent-usage/actions/workflows/auto-lint-pr.yml/badge.svg)](https://github.com/trycopilotai/agent-usage/actions/workflows/auto-lint-pr.yml)
+[![check](https://github.com/trycopilotai/agent-usage/actions/workflows/check.yml/badge.svg)](https://github.com/trycopilotai/agent-usage/actions/workflows/check.yml)
+[![lint](https://github.com/trycopilotai/agent-usage/actions/workflows/lint.yml/badge.svg)](https://github.com/trycopilotai/agent-usage/actions/workflows/lint.yml)
+[![publish-image](https://github.com/trycopilotai/agent-usage/actions/workflows/publish-image.yml/badge.svg)](https://github.com/trycopilotai/agent-usage/actions/workflows/publish-image.yml)
+
 It answers from measured readings and declines when it
 cannot. A provider that did not respond is reported as not
 responding, never as zero usage, and a forecast with too
